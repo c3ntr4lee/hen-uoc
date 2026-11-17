@@ -330,7 +330,8 @@
       </div>
       <div style="margin:10px 0 14px"><span class="tiny muted">Cùng sửa kế hoạch này</span>
         <div class="chips" style="margin-top:6px">${members.map(([uid, n]) => pill(n + (uid === s.owner ? " · chủ" : ""), uid === s.user.uid ? "primary" : "")).join("")}</div></div>
-      <div class="actions"><button class="btn soft" data-invite>Mời người ấy</button><button class="btn ghost danger" data-signout>Đăng xuất</button></div>
+      ${s.planId ? `<div class="field" style="margin-bottom:12px"><label for="inviteLink">Link mời người ấy</label><input class="input" id="inviteLink" readonly value="${esc(s.inviteLink())}" onclick="this.select()"></div>` : ""}
+      <div class="actions"><button class="btn soft" data-invite ${s.planId ? "" : "disabled"}>Gửi link mời</button><button class="btn ghost danger" data-signout>Đăng xuất</button></div>
       <p class="tiny muted" style="margin:10px 0 0">Gửi link mời cho người ấy; họ mở link, đăng nhập Google là cùng sửa được.</p>
     </section>`;
   }
@@ -1537,7 +1538,7 @@
             <button class="chip" id="addPeople" style="border-style:dashed">+ Thêm người</button></div>
         </section>
         <section class="card">
-          <div class="card-head"><div><h3>Dữ liệu</h3><span class="sub">Đang lưu trên trình duyệt của máy này. Xuất file để chuyển sang máy khác hoặc gửi cho người ấy.</span></div></div>
+          <div class="card-head"><div><h3>Dữ liệu</h3><span class="sub">${sync().user ? "Đã lưu trên tài khoản Google. Xuất file nếu muốn giữ thêm một bản sao lưu riêng." : "Đang lưu trên trình duyệt của máy này. Xuất file để chuyển sang máy khác hoặc gửi cho người ấy."}</span></div></div>
           <div class="actions"><button class="btn" id="exp">Xuất file sao lưu</button><label class="btn">Nhập file<input type="file" id="imp" accept="application/json,.json" hidden></label><button class="btn" id="csv">Khách mời (CSV)</button></div>
           <button class="btn ghost danger" id="reset" style="margin-top:12px;padding-left:0">Đặt lại dữ liệu mẫu từ Google Sheet</button>
         </section>

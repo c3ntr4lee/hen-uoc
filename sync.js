@@ -54,10 +54,24 @@ async function init() {
     await A.signOut(auth);
     app().resetLocal();
   };
-  S.inviteLink = () => `${location.origin}${location.pathname}?join=${S.planId}`;
+  // mở từ localhost thì link mời vẫn phải trỏ về web thật, người ấy mới vào được
+  const SITE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "https://hen-uoc.pages.dev/" : location.origin + location.pathname;
+  S.inviteLink = () => `${SITE}?join=${S.planId}`;
+  // Điện thoại: mở bảng chia sẻ (Zalo, Messenger…). Máy tính: chép vào bộ nhớ tạm.
+  // Trình duyệt chặn clipboard (trong app, Zalo…) → chọn sẵn ô link để người dùng tự chép.
   S.invite = async () => {
-    try { await navigator.clipboard.writeText(S.inviteLink()); app().toast("Đã chép link mời — gửi cho người ấy qua Zalo/Messenger"); }
-    catch (e) { prompt("Gửi link này cho người ấy:", S.inviteLink()); }
+    const url = S.inviteLink();
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ title: "Hẹn Ước", text: "Cùng lên kế hoạch cưới với mình nhé:", url }); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(url); app().toast("Đã chép link mời — dán vào Zalo/Messenger để gửi"); return; }
+    catch (e) { /* thử cách dưới */ }
+    const box = document.getElementById("inviteLink");
+    if (box) { box.focus(); box.select(); }
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { /* trình duyệt không hỗ trợ */ }
+    app().toast(ok ? "Đã chép link mời" : "Không tự chép được — link đã được chọn sẵn, bấm Ctrl+C hoặc giữ ngón tay để chép");
   };
   S.push = () => {
     if (!S.planId) return;
