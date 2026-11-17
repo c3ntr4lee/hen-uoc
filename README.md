@@ -18,6 +18,13 @@ Cài đặt Pages: Framework preset **None**, Build command **để trống**, O
 
 Sau mỗi lần sửa file JS/CSS, tăng số `?v=` trong `index.html` để trình duyệt tải bản mới.
 
+## Đăng nhập & đồng bộ (Firebase)
+
+- `sync.js`: đăng nhập Google, lưu kế hoạch lên Firestore, nhận cập nhật từ người cùng sửa.
+- `firebase-config.js`: cấu hình web (công khai theo thiết kế của Firebase). Đặt `null` để tắt đăng nhập.
+- `firestore.rules`: chỉ thành viên kế hoạch đọc/ghi được; người có link mời chỉ tự thêm mình vào.
+  Cập nhật quy tắc: `npx firebase-tools deploy --only firestore:rules --project hen-uoc-t4574`
+
 ## Dữ liệu khách thật
 
 `data.js` chỉ chứa tên mẫu. Danh sách thật ở `private/` (không đưa lên git).

@@ -148,10 +148,12 @@
   try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; }
   if (!state || !state.settings) state = seed();
   normalize(state);
-  const save = () => {
+  const saveLocal = () => {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
-    catch (e) { toast("Không lưu được — bộ nhớ trình duyệt đầy hoặc bị chặn"); }
+    catch (e) { toast("Không lưu được trên máy — bộ nhớ trình duyệt đầy hoặc bị chặn"); }
   };
+  // lưu trên máy, và nếu đã đăng nhập thì gửi lên tài khoản (sync.js)
+  const save = () => { saveLocal(); const s = window.HenUocSync; s && s.push && s.push(); };
 
   const ui = {
     checklistTab: "tl", picFilter: "Tất cả", hideDone: false, collapsed: {},
@@ -174,7 +176,7 @@
     onMount && onMount($("#modalBody"));
     const first = $("#modalBody input:not([type=radio]):not([type=checkbox]), #modalBody textarea, #modalBody select"); first && first.focus();
   }
-  const closeModal = () => { $("#modal").hidden = true; };
+  const closeModal = () => { $("#modal").hidden = true; if (pendingRender) requestRender(); };
   $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.closest("[data-close]")) closeModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
@@ -262,6 +264,15 @@
     const s = state.settings, d = daysLeft();
     $("#sideFoot").innerHTML = `<span class="avatar">${esc(initials(s.bride).slice(0, 1) + "&" + initials(s.groom).slice(0, 1))}</span>
       <span class="who"><b style="font-size:14px">${esc(String(s.bride).split(" ").pop())} &amp; ${esc(String(s.groom).split(" ").pop())}</b><span class="tiny muted">${d > 0 ? `Còn ${d} ngày` : d === 0 ? "Hôm nay!" : "Đã cưới"}</span></span>`;
+    // trạng thái tài khoản ở đáy thanh bên
+    const sy = sync();
+    if (sy.status !== "off") {
+      const [lbl, col] = SYNC_LABEL[sy.status] || ["Chưa đăng nhập", "var(--muted)"];
+      $("#sideFoot").insertAdjacentHTML("beforeend", sy.user
+        ? `<a href="#settings" title="${esc(lbl)}" aria-label="Tài khoản: ${esc(lbl)}" style="margin-left:auto;display:grid;place-items:center;width:28px;height:28px"><i class="dot" style="background:${col};width:10px;height:10px"></i></a>`
+        : `<button class="icon-btn" data-signin title="Đăng nhập Google để lưu lên mạng" aria-label="Đăng nhập Google" style="margin-left:auto">${googleIcon()}</button>`);
+      bindAccount($("#sideFoot"));
+    }
   }
   const routes = { home: renderHome, checklist: renderChecklist, budget: renderBudget, guests: renderGuests, seating: renderSeating, dayof: renderDayOf, vendors: renderVendors, procedures: renderProcedures, extras: renderExtras, settings: renderSettings };
   const afterRender = {};
@@ -275,6 +286,61 @@
   }
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
   const rerender = () => { save(); render(); };
+
+  // ---------- cầu nối với sync.js (đăng nhập Google + đồng bộ) ----------
+  // Vẽ lại khi có dữ liệu từ người kia — nhưng đợi nếu đang mở hộp thoại hoặc đang gõ, để không mất chữ.
+  let pendingRender = false;
+  function requestRender() {
+    const a = document.activeElement;
+    const typing = a && $("#view").contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    if (!$("#modal").hidden || typing) { pendingRender = true; return; }
+    pendingRender = false; render();
+  }
+  document.addEventListener("focusout", () => { if (pendingRender) setTimeout(requestRender, 0); });
+  window.HenUoc = {
+    get state() { return state; },
+    toast,
+    applyRemote(parts, who) {
+      Object.entries(parts).forEach(([k, v]) => { state[k] = k === "settings" ? { ...v, cover: state.settings.cover } : v; });
+      normalize(state); saveLocal(); requestRender();
+      if (who) toast(`${who} vừa cập nhật dữ liệu`);
+    },
+    applyCover(c) { state.settings.cover = c; saveLocal(); requestRender(); },
+    refreshAccount() { renderNav(location.hash.slice(1) || "home"); const r = location.hash.slice(1) || "home"; if (r === "settings" || r === "home") requestRender(); },
+    resetLocal() { state = seed(); normalize(state); try { localStorage.removeItem(KEY); } catch (e) { /* bỏ qua */ } render(); },
+    hasLocalWork() { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } },
+  };
+  const sync = () => window.HenUocSync || { status: "off" };
+  const SYNC_LABEL = { synced: ["Đã lưu lên mạng", "var(--done)"], saving: ["Đang lưu…", "var(--sand-text)"], offline: ["Mất mạng — sẽ lưu sau", "var(--sand-text)"], error: ["Lỗi đồng bộ", "var(--clay-text)"], loading: ["Đang tải…", "var(--muted)"] };
+  function accountCard() {
+    const s = sync();
+    if (s.status === "off") return "";
+    if (!s.user) return `<section class="card">
+      <div class="card-head"><div><h3>Tài khoản &amp; lưu trữ</h3><span class="sub">Dữ liệu hiện chỉ nằm trên trình duyệt của máy này</span></div></div>
+      <p class="small" style="margin:0 0 12px;color:var(--text-2)">Đăng nhập Google để lưu kế hoạch lên mạng: mở ở máy nào cũng thấy, và mời người ấy cùng sửa. Dữ liệu đang có trên máy sẽ được đưa lên tài khoản của bạn.</p>
+      <button class="btn primary" data-signin>${googleIcon()} Đăng nhập bằng Google</button>
+    </section>`;
+    const [lbl, col] = SYNC_LABEL[s.status] || SYNC_LABEL.loading;
+    const members = Object.entries(s.members || {});
+    return `<section class="card">
+      <div class="card-head"><div><h3>Tài khoản &amp; lưu trữ</h3><span class="sub" style="display:flex;align-items:center;gap:6px"><i class="dot" style="background:${col}"></i>${lbl}</span></div></div>
+      <div class="row-line" style="border-top:0;padding-top:0">
+        ${s.user.photoURL ? `<img src="${esc(s.user.photoURL)}" alt="" width="36" height="36" style="border-radius:50%" referrerpolicy="no-referrer">` : `<span class="avatar">${esc(initials(s.user.displayName || s.user.email))}</span>`}
+        <span style="flex:1;display:flex;flex-direction:column;min-width:0"><b class="small">${esc(s.user.displayName || "")}</b><span class="tiny muted">${esc(s.user.email || "")}</span></span>
+      </div>
+      <div style="margin:10px 0 14px"><span class="tiny muted">Cùng sửa kế hoạch này</span>
+        <div class="chips" style="margin-top:6px">${members.map(([uid, n]) => pill(n + (uid === s.owner ? " · chủ" : ""), uid === s.user.uid ? "primary" : "")).join("")}</div></div>
+      <div class="actions"><button class="btn soft" data-invite>Mời người ấy</button><button class="btn ghost danger" data-signout>Đăng xuất</button></div>
+      <p class="tiny muted" style="margin:10px 0 0">Gửi link mời cho người ấy; họ mở link, đăng nhập Google là cùng sửa được.</p>
+    </section>`;
+  }
+  const googleIcon = () => `<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
+  function bindAccount(root) {
+    const s = sync();
+    $$("[data-signin]", root).forEach((b) => b.addEventListener("click", () => s.signIn && s.signIn()));
+    $$("[data-signout]", root).forEach((b) => b.addEventListener("click", () => s.signOut && s.signOut()));
+    $$("[data-invite]", root).forEach((b) => b.addEventListener("click", () => s.invite && s.invite()));
+  }
 
   // ======================================================
   // TRANG CHỦ
@@ -322,6 +388,7 @@
       </div>
     </div>
 
+    ${sync().status === "signedout" ? `<div class="note info" style="align-items:center;flex-wrap:wrap">${icon("info", 18)}<span style="flex:1;min-width:200px">Dữ liệu đang chỉ lưu trên trình duyệt của máy này. Đăng nhập để lưu lên mạng, mở ở máy nào cũng thấy và mời người ấy cùng sửa.</span><button class="btn sm" data-signin>${googleIcon()} Đăng nhập Google</button></div>` : ""}
     <section class="hero">
       <div class="hero-text">
         <span class="eyebrow">${icon("calendar", 16)} ${esc(me.name)} · ${esc(fmtLong(mainDate()))}</span>
@@ -390,6 +457,7 @@
     </div>`;
   }
   afterRender.home = () => {
+    bindAccount($("#view"));
     bindTasks($("#view"));
     $$("[data-go]").forEach((b) => b.addEventListener("click", () => (b.dataset.go === "expense" ? expenseForm() : taskForm())));
     $$("[data-vcat]").forEach((a) => a.addEventListener("click", () => (ui.vendorCat = a.dataset.vcat)));
@@ -1461,6 +1529,7 @@
           </div>`).join("")}
         </section>
       </form>
+      ${accountCard()}
       <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
         <section class="card">
           <div class="card-head"><div><h3>Người phụ trách</h3><span class="sub">Dùng để giao việc trong checklist và thủ tục</span></div></div>
@@ -1489,6 +1558,7 @@
     });
   }
   afterRender.settings = () => {
+    bindAccount($("#view"));
     const m = $("#view");
     bindMoney(m);
     $("#setForm").addEventListener("submit", (e) => {
