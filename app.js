@@ -50,6 +50,7 @@
     book: "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7",
     shield: "M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z",
     doc: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+    more: "M4 6h16M4 12h16M4 18h16",
     print: "M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z",
   };
   const icon = (n, s = 20, extra = "") => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}><path d="${ICONS[n]}"/></svg>`;
@@ -250,10 +251,17 @@
   function renderNav(r) {
     const badge = { checklist: state.tasks.filter((t) => !isDone(t)).length, guests: state.guests.length };
     $("#nav").innerHTML = NAV.map(([title, items]) => `<div class="nav-group"><div class="nav-title">${title}</div>${items.map(([k, label]) =>
-      `<a href="#${k}" class="${k === r ? "active" : ""}" ${k === r ? 'aria-current="page"' : ""}>${icon(k)}<span>${label}</span>${badge[k] ? `<em>${badge[k]}</em>` : ""}</a>`).join("")}</div>`).join("");
+      `<a href="#${k}" title="${label}" class="${k === r ? "active" : ""}" ${k === r ? 'aria-current="page"' : ""}>${icon(k)}<span>${label}</span>${badge[k] ? `<em>${badge[k]}</em>` : ""}</a>`).join("")}</div>`).join("");
+    // thanh tab điện thoại: 4 trang chính + "Thêm" mở các trang còn lại
+    const MAIN_TABS = [["home", "Trang chủ"], ["checklist", "Checklist"], ["budget", "Ngân sách"], ["guests", "Khách mời"]];
+    const inMore = !MAIN_TABS.some(([k]) => k === r);
+    $("#tabbar").innerHTML = MAIN_TABS.map(([k, label]) => `<a href="#${k}" class="${k === r ? "active" : ""}" ${k === r ? 'aria-current="page"' : ""}>${icon(k, 22)}<span>${label}</span></a>`).join("")
+      + `<button type="button" id="moreBtn" class="${inMore ? "active" : ""}" aria-haspopup="dialog">${icon("more", 22)}<span>Thêm</span></button>`;
+    $("#moreBtn").addEventListener("click", () => openModal("Tất cả trang", `<div class="sheet-links">${NAV.flatMap(([, items]) => items).map(([k, label]) =>
+      `<a href="#${k}" class="${k === r ? "active" : ""}" data-close>${icon(k, 24)}<span>${label}</span></a>`).join("")}</div>`));
     const s = state.settings, d = daysLeft();
     $("#sideFoot").innerHTML = `<span class="avatar">${esc(initials(s.bride).slice(0, 1) + "&" + initials(s.groom).slice(0, 1))}</span>
-      <span style="display:flex;flex-direction:column;line-height:1.3;min-width:0"><b style="font-size:14px">${esc(String(s.bride).split(" ").pop())} &amp; ${esc(String(s.groom).split(" ").pop())}</b><span class="tiny muted">${d > 0 ? `Còn ${d} ngày` : d === 0 ? "Hôm nay!" : "Đã cưới"}</span></span>`;
+      <span class="who"><b style="font-size:14px">${esc(String(s.bride).split(" ").pop())} &amp; ${esc(String(s.groom).split(" ").pop())}</b><span class="tiny muted">${d > 0 ? `Còn ${d} ngày` : d === 0 ? "Hôm nay!" : "Đã cưới"}</span></span>`;
   }
   const routes = { home: renderHome, checklist: renderChecklist, budget: renderBudget, guests: renderGuests, seating: renderSeating, dayof: renderDayOf, vendors: renderVendors, procedures: renderProcedures, extras: renderExtras, settings: renderSettings };
   const afterRender = {};
@@ -609,15 +617,15 @@
           <div><h3>${cur === "*" ? "Tất cả khoản chi" : esc(cur)} <span class="muted" style="font-weight:500">· ${rows.length} khoản</span></h3><span class="sub">Bấm một dòng để sửa giá, số đã cọc và hạn trả</span></div>
           <select class="input" id="catSel" style="width:auto;min-width:200px" aria-label="Chọn hạng mục"><option value="*" ${cur === "*" ? "selected" : ""}>Tất cả hạng mục</option>${cats.map((c) => `<option ${c === cur ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         </div>
-        <div class="table-wrap"><table class="list" style="min-width:680px">
+        <div class="table-wrap"><table class="list stack" style="min-width:680px">
           <thead><tr><th>Khoản chi</th><th>Người chi</th><th class="num">Chi phí</th><th class="num">Đã cọc</th><th class="num">Còn lại</th><th>Hạn trả</th></tr></thead>
           <tbody>${rows.map((e) => `<tr class="click" data-exp="${e.id}">
             <td><div style="font-weight:500">${esc(e.name)}</div>${cur === "*" ? `<div class="tiny muted">${esc(e.cat)}</div>` : ""}</td>
-            <td>${pill(e.payer, e.payer === "Tiền mình" ? "clay" : e.payer === "Tiền chồng" ? "primary" : "stone")}</td>
-            <td class="num">${e.cost ? money(e.cost) : pill("Chưa nhập giá", "sand")}</td>
-            <td class="num ${e.deposit ? "" : "muted"}">${e.deposit ? money(e.deposit) : "—"}</td>
-            <td class="num">${e.cost ? (e.cost - e.deposit > 0 ? `<b>${money(e.cost - e.deposit)}</b>` : pill("Đã trả đủ", "done")) : `<span class="muted">—</span>`}</td>
-            <td class="${e.due ? "" : "muted"}">${e.due ? fmtDate(e.due) : "—"}</td>
+            <td data-label="Người chi">${pill(e.payer, e.payer === "Tiền mình" ? "clay" : e.payer === "Tiền chồng" ? "primary" : "stone")}</td>
+            <td data-label="Chi phí" class="num">${e.cost ? money(e.cost) : pill("Chưa nhập giá", "sand")}</td>
+            <td data-label="Đã cọc" class="num ${e.deposit ? "" : "muted"}">${e.deposit ? money(e.deposit) : "—"}</td>
+            <td data-label="Còn lại" class="num">${e.cost ? (e.cost - e.deposit > 0 ? `<b>${money(e.cost - e.deposit)}</b>` : pill("Đã trả đủ", "done")) : `<span class="muted">—</span>`}</td>
+            <td data-label="Hạn trả" class="${e.due ? "" : "muted"}">${e.due ? fmtDate(e.due) : "—"}</td>
           </tr>`).join("") || `<tr><td colspan="6" class="empty">Chưa có khoản chi</td></tr>`}</tbody>
         </table></div>
       </section>
@@ -1216,13 +1224,13 @@
       <div class="cols">
         <section class="card span-2">
           <div class="card-head"><div><h3 style="font-size:18px">${esc(cat)}</h3><span class="sub">${list.length ? `${list.length} đơn vị · bấm một dòng để sửa` : "Chưa có đơn vị nào"}</span></div><button class="btn sm" id="addHere">${icon("plus", 16)} Thêm vào ${esc(cat.split(" · ")[0])}</button></div>
-          ${list.length ? `<div class="table-wrap"><table class="list" style="min-width:600px">
+          ${list.length ? `<div class="table-wrap"><table class="list stack" style="min-width:600px">
             <thead><tr><th>Đơn vị</th><th>Mô tả / ưu điểm</th><th class="num">Giá dự kiến</th><th>Tình trạng</th></tr></thead>
             <tbody>${list.map((x) => `<tr class="click ${x.status === "Loại" ? "out" : ""}" data-v="${x.id}">
               <td><span style="display:flex;align-items:center;gap:10px"><span class="initial">${esc(initials(x.name))}</span><b>${esc(x.name)}</b></span></td>
-              <td style="color:var(--text-2)">${esc(x.desc) || "—"}</td>
-              <td class="num" style="${x.price ? "font-weight:600" : "color:var(--muted)"}">${x.price ? money(x.price) : "Chưa báo giá"}</td>
-              <td>${pill(x.status, VENDOR_TONE[x.status])}</td>
+              <td data-label="Ưu điểm" style="color:var(--text-2)">${esc(x.desc) || "—"}</td>
+              <td data-label="Giá dự kiến" class="num" style="${x.price ? "font-weight:600" : "color:var(--muted)"}">${x.price ? money(x.price) : "Chưa báo giá"}</td>
+              <td data-label="Tình trạng">${pill(x.status, VENDOR_TONE[x.status])}</td>
             </tr>`).join("")}</tbody></table></div>`
           : `<div class="empty">Thêm các đơn vị bạn đang tìm hiểu để so sánh giá và ưu nhược điểm.</div>`}
         </section>
