@@ -1,0 +1,10 @@
+# Dữ liệu cá nhân — không đưa lên GitHub
+private/
+*.json.bak
+hen-uoc-*.json
+khach-moi*.csv
+khach-chua-gui-thiep.csv
+cover.jpg
+
+# Cấu hình công cụ trên máy
+.claude/
