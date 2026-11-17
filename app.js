@@ -1215,15 +1215,21 @@
   // ======================================================
   // SƠ ĐỒ BÀN
   // ======================================================
+  // 4 cột bàn (2 bên lối đi); sảnh cao thêm theo số hàng nên khoảng cách giữa các hàng luôn bằng nhau
+  const hallRows = (n) => Math.max(3, Math.ceil(n / 4));
+  const hallTop = (n) => 48 / hallRows(n); // vùng sân khấu ở trên cùng, luôn cao như nhau
+  const tablePos = (i, n) => ({ x: [13, 31, 69, 87][i % 4], y: +(hallTop(n) + (Math.floor(i / 4) + 0.5) * ((98 - hallTop(n)) / hallRows(n))).toFixed(2) });
+  function relayout(h) { h.tables.forEach((t, i) => Object.assign(t, tablePos(i, h.tables.length))); }
   function defaultTables(n = 12, seats = 10) {
-    const cols = [13, 31, 69, 87];
-    return Array.from({ length: n }, (_, i) => ({ id: uid(), name: "Bàn " + (i + 1), seats, x: cols[i % 4], y: 32 + Math.floor(i / 4) * 22 }));
+    return Array.from({ length: n }, (_, i) => ({ id: uid(), name: "Bàn " + (i + 1), seats, ...tablePos(i, n) }));
   }
   function hall() {
     const ev = state.ui.seatEvent;
     state.halls[ev] ||= { tables: defaultTables(), assign: {} };
     return state.halls[ev];
   }
+  // số ghế dùng nhiều nhất trong các bàn (để gợi ý / áp dụng chung)
+  function commonSeats(h) { const c = {}; h.tables.forEach((t) => (c[t.seats] = (c[t.seats] || 0) + 1)); return +(Object.entries(c).sort((a, b) => b[1] - a[1])[0] || [10])[0]; }
   // chỉ tính khách của lễ đang xem — tránh khách đã đổi sang lễ khác vẫn chiếm ghế
   function seatedAt(h, tid) { const ev = state.ui.seatEvent; return state.guests.filter((g) => g.event === ev && g.rsvp !== "Không đến" && h.assign[g.id] === tid); }
 
@@ -1253,7 +1259,7 @@
 
     return `<div class="wrap" style="max-width:1400px">
       <div class="page-head" style="align-items:center">
-        <div><h1>Sơ đồ bàn</h1><p>${esc(ev)} · ${seatedPeople} / ${guestPeople(invited)} khách có chỗ · ${h.tables.length} bàn · ${capacity} ghế</p></div>
+        <div><h1>Sơ đồ bàn</h1><p>${esc(ev)} · ${seatedPeople} / ${guestPeople(invited)} khách có chỗ · ${h.tables.length} bàn · ${capacity} ghế${guestPeople(invited) > capacity ? ` · <b style="color:var(--clay-text)">cần khoảng ${Math.ceil(guestPeople(invited) / commonSeats(h))} bàn</b>` : ""}</p></div>
         <div class="actions">
           <label class="search" style="min-width:auto"><span class="small muted">Lễ</span><select id="sev" aria-label="Chọn lễ" style="border:0;background:transparent;font-weight:600">${opts(eventNames(), ev)}</select></label>
           <div class="tabs" role="tablist" aria-label="Kiểu xem">
@@ -1261,7 +1267,11 @@
             <button role="tab" aria-selected="${ui.seatView === "3d"}" class="${ui.seatView === "3d" ? "on" : ""}" data-sv="3d">Phối cảnh 3D</button>
           </div>
           <button class="btn" id="autoSeat">Tự xếp theo nhóm</button>
-          <button class="btn primary" id="addTbl">${icon("plus", 18)} Thêm bàn</button>
+          <form id="tblForm" class="search" style="gap:8px;padding:0 6px 0 12px" title="Đổi số bàn: sơ đồ tự xếp lại cho gọn">
+            <label class="small muted" for="tblN">Số bàn</label><input id="tblN" type="number" min="1" max="200" value="${h.tables.length}" style="width:56px;font-weight:600" inputmode="numeric">
+            <label class="small muted" for="tblS">ghế/bàn</label><input id="tblS" type="number" min="2" max="20" value="${commonSeats(h)}" style="width:44px;font-weight:600" inputmode="numeric">
+            <button class="btn sm primary">Áp dụng</button>
+          </form>
         </div>
       </div>
       <div class="seat-layout">
@@ -1288,9 +1298,9 @@
                 <button class="chip" data-cam="overview">Toàn cảnh</button><button class="chip" data-cam="door">Từ cửa vào</button><button class="chip" data-cam="side">Từ bên hông</button>
                 ${sel ? `<button class="chip on" data-cam="table">Nhìn từ ${esc(sel.name)}</button>` : ""}
               </div><div class="spacer"></div><button class="btn sm" id="shot3d">Tải ảnh</button></div>
-            <div class="hall hall3d" id="hall3d"><div class="empty" id="load3d">Đang dựng phối cảnh 3D…</div></div>
+            <div class="hall hall3d" id="hall3d" style="--rows:${hallRows(h.tables.length)}"><div class="empty" id="load3d">Đang dựng phối cảnh 3D…</div></div>
             <div class="hall-hint">Kéo để xoay · cuộn / chụm 2 ngón để phóng to · bấm vào bàn để xem khách · thả tên khách lên bàn để xếp chỗ</div>`
-          : `<div class="hall" id="hall">
+          : `<div class="hall" id="hall" style="--rows:${hallRows(h.tables.length)}">
               <div class="stage"><small>SÂN KHẤU</small>${esc(state.settings.bride)} &amp; ${esc(state.settings.groom)}</div>
               <div class="aisle"><span>Lối đi · Cửa chính</span></div>
               ${tablesHtml}
@@ -1303,10 +1313,20 @@
   afterRender.seating = () => {
     const h = hall(), hallEl = $("#hall");
     $("#sev").addEventListener("change", (e) => { state.ui.seatEvent = e.target.value; ui.selTable = null; ui.selGuest = null; rerender(); });
-    $("#addTbl").addEventListener("click", () => {
-      const n = h.tables.length;
-      h.tables.push({ id: uid(), name: "Bàn " + (n + 1), seats: 10, x: [13, 31, 69, 87][n % 4], y: Math.min(92, 32 + Math.floor(n / 4) * 22) });
-      rerender();
+    $("#tblForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const n = Math.max(1, Math.min(200, Math.round(+$("#tblN").value) || h.tables.length));
+      const seats = Math.max(2, Math.min(20, Math.round(+$("#tblS").value) || 10));
+      const snap = snapshot();
+      const removedTables = h.tables.slice(n);
+      const moved = Object.keys(h.assign).filter((gid) => removedTables.some((t) => t.id === h.assign[gid]));
+      moved.forEach((gid) => delete h.assign[gid]);
+      h.tables = h.tables.slice(0, n);
+      while (h.tables.length < n) h.tables.push({ id: uid(), name: "Bàn " + (h.tables.length + 1), seats });
+      if (seats !== commonSeats(h)) h.tables.forEach((t) => (t.seats = seats));
+      relayout(h);
+      if (removedTables.length) removed(`Còn ${n} bàn${moved.length ? ` — ${moved.length} khách về danh sách chờ` : ""}`, snap);
+      else { rerender(); toast(`${n} bàn × ${seats} ghế`); }
     });
     $("#autoSeat").addEventListener("click", () => autoSeat(h));
     const assign = (gid, tid) => {
@@ -1338,7 +1358,7 @@
           if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
           moved = true; el.style.cursor = "grabbing";
           t.x = Math.max(6, Math.min(94, ((ev.clientX - rect.left) / rect.width) * 100));
-          t.y = Math.max(16, Math.min(94, ((ev.clientY - rect.top) / rect.height) * 100));
+          t.y = Math.max(hallTop(h.tables.length), Math.min(97, ((ev.clientY - rect.top) / rect.height) * 100));
           el.style.left = t.x + "%"; el.style.top = t.y + "%";
         };
         const up = () => {
@@ -1374,7 +1394,7 @@
       return { ...t, colors, used: colors.length, selected: t.id === ui.selTable };
     });
     window.Seating3D.mount(box, {
-      tables, bride: state.settings.bride, groom: state.settings.groom, selId: ui.selTable, cam: ui.cam3d,
+      tables, rows: hallRows(h.tables.length), bride: state.settings.bride, groom: state.settings.groom, selId: ui.selTable, cam: ui.cam3d,
       onPick: (tid, cam) => { ui.cam3d = cam; if (tid && ui.selGuest) return assign(ui.selGuest, tid); ui.selTable = tid && tid !== ui.selTable ? tid : null; render(); },
       onDropGuest: (gid, tid, cam) => { ui.cam3d = cam; assign(gid, tid); },
     }).then((a) => {

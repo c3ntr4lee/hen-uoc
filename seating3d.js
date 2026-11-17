@@ -3,7 +3,7 @@
   "use strict";
   const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
   const ORBIT_URL = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js";
-  const W = 40, D = 30; // kích thước sảnh (đơn vị 3D) tương ứng 100% × 100% mặt bằng 2D
+  const W = 40; let D = 30; // kích thước sảnh (đơn vị 3D) tương ứng 100% × 100% mặt bằng 2D; D dài ra theo số hàng bàn
 
   let loading;
   const loadScript = (src) => new Promise((ok, fail) => {
@@ -44,6 +44,7 @@
   }
 
   async function mount(el, opts) {
+    D = 30 * Math.max(1, (opts.rows || 3) / 3);
     await load();
     const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, ...extra });
 
@@ -174,7 +175,7 @@
 
     // camera
     const views = {
-      overview: { pos: [0, 27, 25], target: [0, 0, 1.5] },
+      overview: { pos: [0, 27 * D / 30, 25 * D / 30], target: [0, 0, 1.5] },
       door: { pos: [0, 3.4, D / 2 - 3], target: [0, 1.2, -8] },
       side: { pos: [W / 2 + 4, 8, 6], target: [-2, 0.5, 0] },
     };

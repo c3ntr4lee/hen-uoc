@@ -360,13 +360,13 @@ table.list tr.out td { opacity: .55; }
 .pool-item.sel { border-color: var(--primary); background: var(--primary-soft); }
 .pool-item .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hall {
-  position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 420px;
+  position: relative; width: 100%; aspect-ratio: 4 / var(--rows, 3); min-height: 420px;
   background: radial-gradient(circle at 1px 1px, var(--hall-dot) 1px, transparent 0) 0 0 / 22px 22px, var(--hall-bg);
   border: 1px solid var(--line); border-radius: 24px; overflow: hidden; touch-action: none;
 }
-.stage { position: absolute; left: 50%; top: 3%; transform: translateX(-50%); width: 40%; background: var(--primary-soft); border: 1px solid var(--line-strong); border-radius: 14px; text-align: center; padding: 8px 6px; font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--primary-text); }
+.stage { position: absolute; left: 50%; top: calc(9% / var(--rows, 3)); transform: translateX(-50%); width: 40%; background: var(--primary-soft); border: 1px solid var(--line-strong); border-radius: 14px; text-align: center; padding: 8px 6px; font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--primary-text); }
 .stage small { display: block; font-family: "Be Vietnam Pro", sans-serif; font-style: normal; font-size: 10px; font-weight: 600; letter-spacing: .16em; color: var(--text-2); }
-.aisle { position: absolute; left: 50%; top: 16%; bottom: 0; width: 8%; transform: translateX(-50%); background: repeating-linear-gradient(180deg, var(--primary-soft) 0 14px, var(--tint-2) 14px 28px); border-radius: 10px 10px 0 0; }
+.aisle { position: absolute; left: 50%; top: calc(48% / var(--rows, 3)); bottom: 0; width: 8%; transform: translateX(-50%); background: repeating-linear-gradient(180deg, var(--primary-soft) 0 14px, var(--tint-2) 14px 28px); border-radius: 10px 10px 0 0; }
 .aisle span { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--primary-text); white-space: nowrap; writing-mode: vertical-rl; }
 .tbl { position: absolute; width: 13%; aspect-ratio: 1; transform: translate(-50%, -50%); cursor: grab; user-select: none; }
 .tbl .disc { position: absolute; inset: 20%; border-radius: 50%; background: var(--surface); border: 1.5px dashed var(--check-border); display: grid; place-items: center; text-align: center; line-height: 1.1; box-shadow: 0 2px 8px rgba(31,42,34,.08); transition: border-color .15s, box-shadow .15s; }
@@ -514,7 +514,7 @@ table.list tr.out td { opacity: .55; }
 
   .seat-layout { grid-template-columns: 1fr; }
   .seat-side { position: static; max-height: 300px; }
-  .hall { aspect-ratio: 3 / 4; min-height: 0; border-radius: 18px; }
+  .hall { aspect-ratio: 3 / calc(var(--rows, 3) * 4 / 3); min-height: 0; border-radius: 18px; }
   .tbl { width: 20%; }
   .stage { width: 56%; font-size: 15px; }
 
