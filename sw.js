@@ -1,7 +1,7 @@
 // Mở được khi mất mạng: lấy bản mới từ mạng trước, mất mạng thì dùng bản đã lưu.
 // Không đụng tới dữ liệu đồng bộ (Firestore/đăng nhập) — Firebase tự lo phần ngoại tuyến của nó.
-const CACHE = "henuoc-v1";
-const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./data.js", "./lunar.js", "./sync.js", "./firebase-config.js", "./seating3d.js", "./manifest.webmanifest", "./icons/icon-192.png"];
+const CACHE = "henuoc-v2";
+const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./data.js", "./lunar.js", "./sync.js", "./firebase-config.js", "./seating3d.js", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/logo.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
