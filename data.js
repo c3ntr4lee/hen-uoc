@@ -221,7 +221,7 @@ const SEED_CATEGORIES = {
   ],
 };
 
-// Hạng mục ngân sách mẫu (đồng) — sửa trong web
+// Hạng mục ngân sách (số tiền đặt trong web)
 const SEED_BUDGET_CATS = {
   "Chụp pre-wedding": 25e6,
   "Thăm nhà": 5e6,
@@ -230,47 +230,6 @@ const SEED_BUDGET_CATS = {
   "Lễ vu quy": 50e6,
   "Lễ thành hôn": 55e6,
   "Khác": 10e6,
-};
-
-// [khoản chi, hạng mục, người chi, chi phí, đã trả]
-const SEED_EXPENSES = [
-  ["Mời cô bác nhà nội (dạm ngỏ)", "Dạm ngỏ", "Gia đình", 500000, 500000],
-  ["Đồ riêng để mặc nhiều lần, vali", "Chụp pre-wedding", "Tiền mình"],
-  ["Vest chú rể 2 bộ", "Chụp pre-wedding", "Tiền chồng"],
-  ["Makeup cô dâu 2 layout", "Chụp pre-wedding", "Tiền mình"],
-  ["Hoa cầm tay cô dâu", "Chụp pre-wedding", "Tiền mình"],
-  ["Mua quần áo cho ba và mẹ", "Thăm nhà", "Tiền mình"],
-  ["Quần áo dạm ngỏ cho ba mẹ", "Dạm ngỏ", "Tiền mình"],
-  ["Nhãn in, bảng thông báo", "Dạm ngỏ", "Tiền chồng"],
-  ["Nước suối, nước ngọt", "Dạm ngỏ", "Tiền chồng"],
-  ["Hoa trang trí bàn", "Dạm ngỏ", "Tiền mình"],
-  ["Bánh kẹo đãi khách", "Dạm ngỏ", "Tiền chồng"],
-  ["Đãi tiệc 2 bàn", "Dạm ngỏ", "Tiền mình"],
-  ["Bàn ghế thuê", "Dạm ngỏ", "Tiền chồng"],
-  ["Chụp dạm ngỏ", "Dạm ngỏ", "Tiền chồng"],
-  ["Phóng sự cưới", "Lễ vu quy", "Tiền mình"],
-  ["Makeup cho mẹ và mình", "Lễ vu quy", "Tiền mình"],
-  ["Decor gia tiên nhà gái", "Lễ vu quy", "Tiền mình"],
-  ["Phóng sự cưới", "Lễ thành hôn", "Tiền mình"],
-  ["Thuê combo váy cưới x2", "Lễ thành hôn", "Tiền mình"],
-  ["Makeup cho mẹ và mình", "Lễ thành hôn", "Tiền mình"],
-  ["Decor gia tiên nhà trai", "Lễ thành hôn", "Tiền mình"],
-  ["Thuê combo vest cưới", "Lễ thành hôn", "Tiền chồng"],
-  ["Voan cưới", "Khác", "Tiền mình", 200000, 200000],
-];
-
-// Khách mẫu (tên giả). Danh sách thật nằm ở private/khach-that.js — không đưa lên git.
-// "lễ|nhóm": [số khách, số người đã gửi thiệp]
-const SEED_GUESTS_BRIDE = {
-  "Lễ ăn hỏi|Bạn bè": [7, 7],
-  "Tiệc nhà gái|Bạn thân": [7, 7],
-  "Tiệc nhà gái|Bạn đại học": [8, 8],
-  "Tiệc nhà gái|Bạn cấp 3": [15, 14],
-  "Tiệc nhà gái|Bạn cấp 2": [8, 8],
-  "Tiệc nhà gái|Bạn ở làng": [22, 9],
-  "Tiệc nhà gái|Công ty": [37, 37],
-  "Tiệc nhà gái|Người nhà": [13, 3],
-  "Tiệc nhà gái|Khác": [9, 5],
 };
 
 // Tab "5. LỄ DẠM NGỎ" — phân công trong gia đình
@@ -308,30 +267,9 @@ const SEED_REG_DOCS = [
   ["Hai người cùng có mặt", "Để ký và nhận giấy"],
 ];
 
-// Tab 2.x — nhà cung cấp: [hạng mục, đơn vị, mô tả / ưu điểm, giá (đồng), tình trạng]
+// Tab 2.x — hạng mục nhà cung cấp
 const VENDOR_CATS = ["Studio · phóng sự", "Makeup", "Nhẫn cưới", "Decor · tráp · hoa", "Nhà hàng · menu", "Xe hoa · bưng quả",
   "Váy & phụ kiện cô dâu", "Vest chú rể", "Trang phục bố mẹ", "Thiệp cưới", "Nail · spa · salon"];
-const SEED_VENDORS = [
-  ["Studio · phóng sự", "Tú Juli", "Nước ảnh đẹp, gần nhà", 11900000, "Đặt cọc"],
-  ["Studio · phóng sự", "Jeju Wedding", "Album cưới đẹp", 0, "Đã liên hệ"],
-  ["Studio · phóng sự", "Soha", "Nước ảnh đẹp, giá tốt", 0, "Đã liên hệ"],
-  ["Studio · phóng sự", "Anh Khôi", "Linh hoạt", 0, "Đã liên hệ"],
-  ["Studio · phóng sự", "Phi Long", "Phóng sự đẹp", 0, "Đã liên hệ"],
-  ["Studio · phóng sự", "PSC Kiên Cường", "Phóng sự đẹp", 0, "Đã liên hệ"],
-  ["Makeup", "Mai Tít", "Hà Nội · make dâu cưới, hỏi", 5000000, "Đã liên hệ"],
-  ["Makeup", "Bình Kê", "Hà Nội · make dâu cưới", 3500000, "Loại"],
-  ["Makeup", "Nhung Coy", "Phú Thọ · dạm ngõ, ăn hỏi", 2000000, "Loại"],
-  ["Makeup", "Chị Huyền", "Ba Vì · make mẹ, họ hàng", 0, "Xem xét liên hệ"],
-  ["Makeup", "Chị Duyên", "Ba Vì · make mẹ, họ hàng", 0, "Xem xét liên hệ"],
-  ["Nhẫn cưới", "PNJ", "Mẫu mã đẹp", 0, "Đã liên hệ"],
-  ["Nhẫn cưới", "Huy Thanh", "Giá tốt", 0, "Đã liên hệ"],
-  ["Nhẫn cưới", "DOJI", "Giá tốt", 0, "Đã liên hệ"],
-  ["Nhẫn cưới", "Tiệm gần nhà", "", 0, "Đã liên hệ"],
-  ["Nhẫn cưới", "Tiera", "Nhẫn đặc lòng, mẫu mã đẹp", 0, "Đã liên hệ"],
-  ["Decor · tráp · hoa", "Việt Hà", "Gia tiên", 0, "Đã liên hệ"],
-  ["Decor · tráp · hoa", "Dũng Hường", "Gia tiên", 0, "Đã liên hệ"],
-  ["Decor · tráp · hoa", "Cô Ngọc Vân An Thái", "Gia tiên", 0, "Đã liên hệ"],
-];
 
 // Tab "KỊCH BẢN TIỆC THÂN MẬT" — [phần, giờ, hoạt động, phút, nhạc, khoảnh khắc chính]
 const SEED_SCRIPT = [

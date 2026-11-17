@@ -14,6 +14,8 @@
   const PAYER_HEX = { "Tiền mình": "#B97862", "Tiền chồng": "#3F5B45", "Gia đình": "#9AA7A9" };
   const SIDES = ["Nhà gái", "Nhà trai", "Chung"];
   const SIDE_HEX = { "Nhà gái": "#B97862", "Nhà trai": "#3F5B45", "Chung": "#9AA7A9" };
+  const RSVP = ["", "Sẽ đến", "Không đến"];
+  const RSVP_TONE = { "": "outline", "Sẽ đến": "done", "Không đến": "clay" };
   const SEND_VIA = ["Online", "Thiệp giấy", "Đến nhà"];
   const CAT_HEX = ["#3F5B45", "#A9BFA6", "#6E8B70", "#C9D6C3", "#B08A5B", "#DCC8A5", "#9AA7A9", "#7E9A7F", "#C7B08A"];
   const CAT_TONES = [["var(--primary-soft)", "var(--primary-text)"], ["var(--sand-soft)", "var(--sand-text)"], ["var(--stone-soft)", "var(--stone-text)"], ["var(--clay-soft)", "var(--clay-text)"]];
@@ -75,48 +77,48 @@
   const today = () => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const dd = (d) => `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
   const WDL = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
   const fmtDate = (iso) => (iso ? `${WD[toDate(iso).getDay()]}, ${dd(toDate(iso))}` : "");
   const fmtLong = (iso) => (iso ? `${WDL[toDate(iso).getDay()]}, ${dd(toDate(iso))}` : "");
+  // "27/9 ÂL" — ngày âm lịch (lunar.js); dài: "27/9 năm Đinh Mùi"
+  const lunarLabel = (iso, long) => {
+    if (!iso || !window.Lunar) return "";
+    const d = toDate(iso), l = window.Lunar.solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
+    return `${l.day}/${l.month}${l.leap ? " nhuận" : ""}${long ? ` năm ${window.Lunar.canChi(l.year)}` : " ÂL"}`;
+  };
   const initials = (s) => String(s).trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   // ---------- state ----------
   function seedParts() {
     const tasks = [];
+    // khung kế hoạch từ Google Sheet, mọi việc đều "chưa làm"
     Object.entries(SEED_TIMELINE).forEach(([phase, list]) =>
-      list.forEach(([title, done]) => tasks.push({ id: uid(), kind: "tl", phase, title, status: done ? "Hoàn tất" : "Chưa có gì" })));
+      list.forEach(([title]) => tasks.push({ id: uid(), kind: "tl", phase, title, status: "Chưa có gì", due: "" })));
     Object.entries(SEED_CATEGORIES).forEach(([group, list]) =>
-      list.forEach(([title, pic, prep, status]) => tasks.push({ id: uid(), kind: "cat", group, title, pic, prep, status })));
+      list.forEach(([title, pic, prep]) => tasks.push({ id: uid(), kind: "cat", group, title, pic, prep, status: "Chưa có gì", due: "" })));
     const guests = [];
-    // hai dạng: [số khách, số đã gửi] (tên mẫu) hoặc "Tên,*Tên chưa gửi,…" (danh sách thật, xem private/)
-    Object.entries(SEED_GUESTS_BRIDE).forEach(([k, v]) => {
-      const [event, group] = k.split("|");
-      const rows = Array.isArray(v)
-        ? Array.from({ length: v[0] }, (_, i) => ({ name: `${group} ${i + 1}`, sent: i < v[1] }))
-        : v.split(",").map((raw) => ({ name: raw.replace("*", "").trim(), sent: !raw.startsWith("*") }));
-      rows.forEach(({ name, sent }) => guests.push({ id: uid(), name, side: "Nhà gái", event, group, count: 1, phone: "", sendVia: event === "Lễ ăn hỏi" ? "Online" : "", sent, note: "" }));
-    });
     const team = [];
     SEED_TEAM.forEach(([role, n, fee]) => { for (let i = 0; i < n; i++) team.push({ id: uid(), name: "", role, fee, size: "", phone: "", ok: false }); });
     const music = [];
     Object.entries(SEED_MUSIC).forEach(([moment, list]) => list.forEach((s) => { const [title, artist = ""] = s.split(" – "); music.push({ id: uid(), moment, title, artist }); }));
     return {
       tasks, guests, team, music,
-      expenses: SEED_EXPENSES.map(([name, cat, payer, cost = 0, deposit = 0]) => ({ id: uid(), name, cat, payer, cost, deposit, date: "", due: "", vendorId: "", source: "", note: "" })),
-      budgetCats: { ...SEED_BUDGET_CATS },
-      events: SEED_EVENTS.map(([name, date, main]) => ({ name, date, place: "", main: !!main })),
+      expenses: [],
+      budgetCats: Object.fromEntries(Object.keys(SEED_BUDGET_CATS).map((k) => [k, 0])),
+      events: SEED_EVENTS.map(([name, , main]) => ({ name, date: "", place: "", main: !!main })),
       people: [...SEED_PEOPLE],
-      procedures: SEED_PROCEDURES.map(([name, kind, pic, status, place, note]) => ({ id: uid(), name, kind, pic, status, place, date: "", cost: 0, note })),
+      procedures: SEED_PROCEDURES.map(([name, kind, pic, , place, note]) => ({ id: uid(), name, kind, pic, status: "Chưa có gì", place, date: "", cost: 0, note })),
       regDocs: SEED_REG_DOCS.map(([name, note]) => ({ id: uid(), name, note, done: false })),
-      vendors: SEED_VENDORS.map(([cat, name, desc, price, status]) => ({ id: uid(), cat, name, desc, price, status, contact: "", note: "" })),
+      vendors: [],
       script: { "Tiệc thân mật": SEED_SCRIPT.map(([part, time, text, mins, music, key]) => ({ id: uid(), part, time, text, mins, music, key: !!key })) },
       after: SEED_AFTER.map((name) => ({ id: uid(), name, pic: "", done: false })),
       halls: {},
     };
   }
   function seed() {
-    return { v: DATA_VERSION, settings: { bride: "Thu Hương", groom: "Minh Quân", date: "2027-10-26", venue: "", budget: 200e6, guestTarget: 0, cover: "" }, ui: { seatEvent: "Tiệc nhà gái" }, ...seedParts() };
+    return { v: DATA_VERSION, settings: { bride: "", groom: "", date: "", venue: "", budget: 0, guestTarget: 0, cover: "" }, ui: { seatEvent: "Tiệc nhà gái" }, ...seedParts() };
   }
   // bổ sung khoá thiếu (dữ liệu từ bản trước / file nhập)
   function normalize(s) {
@@ -153,7 +155,7 @@
     catch (e) { toast("Không lưu được trên máy — bộ nhớ trình duyệt đầy hoặc bị chặn"); }
   };
   // lưu trên máy, và nếu đã đăng nhập thì gửi lên tài khoản (sync.js)
-  const save = () => { saveLocal(); const s = window.HenUocSync; s && s.push && s.push(); };
+  const save = () => { undoSnap = null; saveLocal(); const s = window.HenUocSync; s && s.push && s.push(); };
 
   const ui = {
     checklistTab: "tl", picFilter: "Tất cả", hideDone: false, collapsed: {},
@@ -165,19 +167,115 @@
 
   // ---------- toast & modal ----------
   let toastT;
-  function toast(msg) {
-    const el = $("#toast"); el.textContent = msg; el.classList.add("show");
-    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2200);
+  // action: { label, fn } → thông báo có nút (vd "Hoàn tác"), hiện lâu hơn
+  function toast(msg, action) {
+    const el = $("#toast");
+    el.innerHTML = `<span>${esc(msg)}</span>${action ? `<button type="button">${esc(action.label)}</button>` : ""}`;
+    el.classList.toggle("has-action", !!action);
+    if (action) el.querySelector("button").onclick = () => { el.classList.remove("show"); action.fn(); };
+    el.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), action ? 6000 : 2400);
   }
+  let onModalClose = null;
   function openModal(title, html, onMount) {
+    onModalClose = null;
+    if (typeof resetSheet === "function") resetSheet();
     $("#modalTitle").textContent = title;
     $("#modalBody").innerHTML = html;
     $("#modal").hidden = false;
     onMount && onMount($("#modalBody"));
     const first = $("#modalBody input:not([type=radio]):not([type=checkbox]), #modalBody textarea, #modalBody select"); first && first.focus();
   }
-  const closeModal = () => { $("#modal").hidden = true; if (pendingRender) requestRender(); };
-  $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.closest("[data-close]")) closeModal(); });
+  const closeModal = () => {
+    $("#modal").hidden = true;
+    const f = onModalClose; onModalClose = null; f && f();
+    if (pendingRender) requestRender();
+  };
+  // Hộp hỏi kiểu của web thay confirm()/prompt(). Đóng bằng ✕/Esc/bấm ra ngoài → trả về `dismiss`.
+  function ask({ title, text = "", ok = "Đồng ý", cancel = "Huỷ", danger = false, input = null, dismiss = false }) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (done) return; done = true; onModalClose = null; closeModal(); resolve(v); };
+      openModal(title, `${text ? `<p class="small" style="margin:0 0 14px;color:var(--text-2);white-space:pre-line">${esc(text)}</p>` : ""}
+        ${input ? `<form id="askForm"><input class="input" id="askInput" placeholder="${esc(input.placeholder || "")}" value="${esc(input.value || "")}" aria-label="${esc(title)}"></form>` : ""}
+        <div class="form-actions"><button type="button" class="btn" id="askNo">${esc(cancel)}</button><button type="button" class="btn ${danger ? "danger-fill" : "primary"}" id="askYes">${esc(ok)}</button></div>`,
+      (m) => {
+        const yes = () => finish(input ? $("#askInput", m).value.trim() : true);
+        $("#askYes", m).addEventListener("click", yes);
+        $("#askNo", m).addEventListener("click", () => finish(input ? null : false));
+        const f = $("#askForm", m); f && f.addEventListener("submit", (e) => { e.preventDefault(); yes(); });
+        if (!input) $("#askYes", m).focus();
+      });
+      onModalClose = () => { if (!done) { done = true; resolve(input ? null : dismiss); } };
+    });
+  }
+  // Xoá có hoàn tác: chụp dữ liệu trước khi xoá, sau khi xoá hiện nút "Hoàn tác" ~6 giây.
+  // Bất kỳ lần lưu nào sau đó cũng huỷ cơ hội hoàn tác, để không quay ngược thay đổi mới hơn.
+  let undoSnap = null;
+  const snapshot = () => JSON.stringify(state);
+  function removed(msg, snap) {
+    closeModal(); rerender();
+    undoSnap = snap;
+    toast(msg, { label: "Hoàn tác", fn: () => { if (undoSnap !== snap) return; undoSnap = null; state = normalize(JSON.parse(snap)); rerender(); toast("Đã hoàn tác"); } });
+  }
+  $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.closest(".modal-head [data-close]")) dismissSheet(); else if (e.target.closest("[data-close]")) closeModal(); });
+
+  // ---------- Tấm hộp thoại trên điện thoại: kéo xuống để đóng ----------
+  // Theo sát ngón tay 1:1, kéo ngược lên thì có lực cản; thả tay thì dựa vào đà vuốt
+  // để quyết định đóng hay bật về; đang chạy vẫn chộp lại được (lò xo bắt đầu từ vị trí hiện tại).
+  const isPhone = () => matchMedia("(max-width: 760px)").matches;
+  const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // lò xo: response = chu kỳ (giây), damping 1 = không nảy, < 1 = nảy nhẹ
+  function spring(from, to, v0, onFrame, done, response = 0.32, damping = 1) {
+    const k = (2 * Math.PI / response) ** 2, c = (4 * Math.PI * damping) / response;
+    let x = from, v = v0, last = performance.now(), id;
+    const step = (now) => {
+      // chia nhỏ bước tính (1/240s) để lò xo không "nổ" khi khung hình bị giật
+      let t = Math.min(0.064, (now - last) / 1000); last = now;
+      while (t > 0) { const h = Math.min(t, 1 / 240); v += (-k * (x - to) - c * v) * h; x += v * h; t -= h; }
+      if (!Number.isFinite(x)) x = to;
+      onFrame(x);
+      if (Math.abs(x - to) < 0.5 && Math.abs(v) < 8) { onFrame(to); if (done) done(); return; }
+      id = requestAnimationFrame(step);
+    };
+    id = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(id);
+  }
+  const project = (v, d = 0.998) => ((v / 1000) * d) / (1 - d); // điểm dừng dự kiến theo đà
+  const rubber = (x, dim, c = 0.55) => (x * dim * c) / (dim + c * Math.abs(x));
+  let sheetY = 0, stopSpring = null;
+  const sheetEl = () => $("#modal .modal");
+  function setSheet(y) {
+    sheetY = y;
+    const h = sheetEl().offsetHeight || 1;
+    sheetEl().style.transform = y ? `translateY(${y}px)` : "";
+    $("#modal").style.background = y > 0 ? `rgba(31,42,34,${(0.32 * Math.max(0, 1 - y / h)).toFixed(3)})` : "";
+  }
+  function resetSheet() { if (stopSpring) stopSpring(); stopSpring = null; setSheet(0); }
+  function dismissSheet(v = 0) {
+    if (!isPhone() || reduceMotion() || $("#modal").hidden) return closeModal();
+    if (stopSpring) stopSpring();
+    stopSpring = spring(sheetY, sheetEl().offsetHeight + 24, Math.max(v, 0), setSheet, () => { stopSpring = null; closeModal(); setSheet(0); }, 0.3, 1);
+  }
+  $("#modal").addEventListener("pointerdown", (e) => {
+    if (!isPhone() || !e.target.closest(".modal-head, .grabber") || e.target.closest("button")) return;
+    if (stopSpring) { stopSpring(); stopSpring = null; } // chộp lại giữa chừng: đi tiếp từ vị trí đang hiện
+    const el = e.target, startY = e.clientY - sheetY, hist = [];
+    el.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const y = ev.clientY - startY;
+      setSheet(y < 0 ? rubber(y, 200) : y);
+      hist.push([ev.timeStamp, ev.clientY]); if (hist.length > 5) hist.shift();
+    };
+    const up = () => {
+      el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+      const a = hist[0], b = hist[hist.length - 1];
+      const v = a && b && b[0] > a[0] ? ((b[1] - a[1]) / (b[0] - a[0])) * 1000 : 0; // px/giây
+      if (sheetY + project(v) > sheetEl().offsetHeight * 0.5) dismissSheet(v);
+      else if (sheetY) stopSpring = spring(sheetY, 0, v, setSheet, () => (stopSpring = null), 0.3, 0.85); // có đà nên nảy nhẹ
+    };
+    el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+  });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
   const opts = (list, cur) => list.map((o) => `<option ${o === cur ? "selected" : ""}>${esc(o)}</option>`).join("");
@@ -204,13 +302,19 @@
   const mainEvent = () => state.events.find((e) => e.main) || state.events[0];
   const mainDate = () => mainEvent().date || state.settings.date;
   const eventNames = () => state.events.map((e) => e.name);
-  const daysLeft = () => Math.round((toDate(mainDate()) - today()) / 864e5);
+  // null khi chưa chọn ngày cưới (kế hoạch mới / vừa đặt lại)
+  const daysLeft = () => (mainDate() ? Math.round((toDate(mainDate()) - today()) / 864e5) : null);
   function currentPhaseIdx() {
     const d = daysLeft();
+    if (d === null) return 0;
     const i = PHASE_MIN_DAYS.findIndex((m) => d >= m);
     return i === -1 ? PHASE_MIN_DAYS.length - 1 : i;
   }
+  // hạn của một giai đoạn = ngày cưới trừ số ngày tối thiểu của giai đoạn
+  const phaseEnd = (i) => (mainDate() ? addDays(toDate(mainDate()), -PHASE_MIN_DAYS[i]) : null);
+  const coupleShort = () => { const s = state.settings; const a = String(s.bride || "").trim().split(" ").pop(), b = String(s.groom || "").trim().split(" ").pop(); return a && b ? `${a} & ${b}` : a || b || "hai bạn"; };
   function phaseRange(i) {
+    if (!mainDate()) return "Chọn ngày cưới để biết hạn";
     const w = toDate(mainDate());
     const end = addDays(w, -PHASE_MIN_DAYS[i]);
     if (i === PHASE_MIN_DAYS.length - 1) return fmtLong(mainDate());
@@ -259,11 +363,11 @@
     const inMore = !MAIN_TABS.some(([k]) => k === r);
     $("#tabbar").innerHTML = MAIN_TABS.map(([k, label]) => `<a href="#${k}" class="${k === r ? "active" : ""}" ${k === r ? 'aria-current="page"' : ""}>${icon(k, 22)}<span>${label}</span></a>`).join("")
       + `<button type="button" id="moreBtn" class="${inMore ? "active" : ""}" aria-haspopup="dialog">${icon("more", 22)}<span>Thêm</span></button>`;
-    $("#moreBtn").addEventListener("click", () => openModal("Tất cả trang", `<div class="sheet-links">${NAV.flatMap(([, items]) => items).map(([k, label]) =>
-      `<a href="#${k}" class="${k === r ? "active" : ""}" data-close>${icon(k, 24)}<span>${label}</span></a>`).join("")}</div>`));
+    $("#moreBtn").addEventListener("click", () => openModal("Tất cả trang", `<button type="button" class="search" id="sheetSearch" style="width:100%;margin-bottom:14px;cursor:pointer;color:var(--muted);font:inherit">${icon("search", 18)} Tìm việc, khách, khoản chi…</button><div class="sheet-links">${NAV.flatMap(([, items]) => items).map(([k, label]) =>
+      `<a href="#${k}" class="${k === r ? "active" : ""}" data-close>${icon(k, 24)}<span>${label}</span></a>`).join("")}</div>`, (m) => $("#sheetSearch", m).addEventListener("click", openSearch)));
     const s = state.settings, d = daysLeft();
-    $("#sideFoot").innerHTML = `<span class="avatar">${esc(initials(s.bride).slice(0, 1) + "&" + initials(s.groom).slice(0, 1))}</span>
-      <span class="who"><b style="font-size:14px">${esc(String(s.bride).split(" ").pop())} &amp; ${esc(String(s.groom).split(" ").pop())}</b><span class="tiny muted">${d > 0 ? `Còn ${d} ngày` : d === 0 ? "Hôm nay!" : "Đã cưới"}</span></span>`;
+    $("#sideFoot").innerHTML = `<span class="avatar">${esc((initials(s.bride || "H").slice(0, 1) + "&" + initials(s.groom || "U").slice(0, 1)))}</span>
+      <span class="who"><b style="font-size:14px">${esc(coupleShort())}</b><span class="tiny muted">${d === null ? "Chưa chọn ngày" : d > 0 ? `Còn ${d} ngày` : d === 0 ? "Hôm nay!" : "Đã cưới"}</span></span>`;
     // trạng thái tài khoản ở đáy thanh bên
     const sy = sync();
     if (sy.status !== "off") {
@@ -283,6 +387,7 @@
     if (viewCleanup) { viewCleanup(); viewCleanup = null; }
     $("#view").innerHTML = routes[r]();
     afterRender[r] && afterRender[r]();
+    maybeOnboard();
   }
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
   const rerender = () => { save(); render(); };
@@ -299,7 +404,7 @@
   document.addEventListener("focusout", () => { if (pendingRender) setTimeout(requestRender, 0); });
   window.HenUoc = {
     get state() { return state; },
-    toast,
+    toast, ask,
     applyRemote(parts, who) {
       Object.entries(parts).forEach(([k, v]) => { state[k] = k === "settings" ? { ...v, cover: state.settings.cover } : v; });
       normalize(state); saveLocal(); requestRender();
@@ -344,6 +449,109 @@
   }
 
   // ======================================================
+  // TÌM KIẾM CHUNG (phím / hoặc Ctrl+K)
+  // ======================================================
+  const fold = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  function openSearch() {
+    openModal("Tìm kiếm", `<label class="search" style="margin-bottom:12px">${icon("search", 18)}<input type="search" id="gsq" placeholder="Tìm việc, khách, khoản chi, nhà cung cấp…" aria-label="Tìm kiếm" autocomplete="off"></label>
+      <div id="gsr" class="stack" style="gap:6px"><div class="empty small">Gõ để tìm — không cần dấu</div></div>`,
+    (m) => {
+      const kinds = [
+        ["Việc", "checklist", () => state.tasks, (t) => t.title, (t) => (t.kind === "tl" ? t.phase : t.group), (t) => taskForm(t)],
+        ["Khách mời", "guests", () => state.guests, (g) => g.name, (g) => [g.event, g.group].filter(Boolean).join(" · "), (g) => guestForm(g)],
+        ["Khoản chi", "budget", () => state.expenses, (e) => e.name, (e) => `${e.cat}${e.cost ? " · " + money(e.cost) : ""}`, (e) => expenseForm(e)],
+        ["Nhà cung cấp", "vendors", () => state.vendors, (v) => `${v.name} ${v.desc}`, (v) => v.cat, (v) => vendorForm(v)],
+        ["Thủ tục", "procedures", () => state.procedures, (p) => p.name, (p) => p.kind, (p) => procForm(p)],
+        ["Nhạc", "extras", () => state.music, (s) => `${s.title} ${s.artist}`, (s) => s.moment, (s) => songForm(s)],
+      ];
+      let hits = [];
+      const run = () => {
+        const q = fold($("#gsq", m).value.trim());
+        if (!q) { $("#gsr", m).innerHTML = `<div class="empty small">Gõ để tìm — không cần dấu</div>`; return; }
+        hits = [];
+        const html = kinds.map(([label, ico, list, text, sub, open]) => {
+          const found = list().filter((x) => fold(text(x)).includes(q)).slice(0, 6);
+          if (!found.length) return "";
+          return `<div class="tiny muted" style="font-weight:600;margin-top:8px">${label}</div>` + found.map((x) => {
+            hits.push(() => open(x));
+            return `<button type="button" class="row-line" data-hit="${hits.length - 1}" style="border:0;background:var(--bg);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;width:100%;font:inherit;color:inherit">${icon(ico, 18)}<span style="display:flex;flex-direction:column;min-width:0"><b class="small">${esc(text(x))}</b><span class="tiny muted">${esc(sub(x) || "")}</span></span></button>`;
+          }).join("");
+        }).join("");
+        $("#gsr", m).innerHTML = html || `<div class="empty small">Không tìm thấy “${esc($("#gsq", m).value)}”</div>`;
+      };
+      $("#gsq", m).addEventListener("input", run);
+      $("#gsr", m).addEventListener("click", (e) => { const b = e.target.closest("[data-hit]"); b && hits[+b.dataset.hit](); });
+    });
+  }
+  $("#searchBtn").addEventListener("click", openSearch);
+  document.addEventListener("keydown", (e) => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName);
+    if ((e.key === "/" && !typing) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) { e.preventDefault(); openSearch(); }
+  });
+
+  // ======================================================
+  // BƯỚC LÀM QUEN LẦN ĐẦU (kế hoạch mới hoặc vừa đặt lại)
+  // ======================================================
+  function maybeOnboard() {
+    const s = state.settings;
+    if (ui.onboardSkipped || s.bride || s.groom || mainDate()) return;
+    if (!$("#modal").hidden || ["loading", "saving"].includes(sync().status)) return; // chờ tải xong dữ liệu trên mạng
+    onboard();
+  }
+  function onboard() {
+    const s = state.settings, me = mainEvent();
+    let step = 1;
+    openModal("Chào mừng đến Hẹn Ước", `
+      <form id="ob" novalidate>
+        <div class="tiny muted" id="obStep" style="margin-bottom:10px"></div>
+        <div data-st="1" class="form-grid">
+          <p class="small full" style="margin:0;color:var(--text-2)">Vài thông tin để web lên lịch chuẩn bị cho hai bạn. Sau này sửa được trong Cài đặt.</p>
+          <div class="field"><label for="ob-b">Tên cô dâu</label><input class="input" id="ob-b" name="bride" value="${esc(s.bride)}" autocomplete="off"></div>
+          <div class="field"><label for="ob-g">Tên chú rể</label><input class="input" id="ob-g" name="groom" value="${esc(s.groom)}" autocomplete="off"></div>
+        </div>
+        <div data-st="2" class="form-grid" hidden>
+          <div class="field full"><label>Lễ chính (đếm ngược theo lễ này)</label><select class="input" name="main">${state.events.map((e, i) => `<option value="${i}" ${e === me ? "selected" : ""}>${esc(e.name)}</option>`).join("")}</select></div>
+          <div class="field"><label for="ob-d">Ngày</label><input class="input" type="date" id="ob-d" name="date" value="${esc(me.date)}"><span class="tiny muted" id="ob-lunar"></span></div>
+          <div class="field"><label for="ob-p">Địa điểm</label><input class="input" id="ob-p" name="place" value="${esc(me.place || s.venue)}" placeholder="Có thể điền sau"></div>
+        </div>
+        <div data-st="3" class="form-grid" hidden>
+          <div class="field"><label>Tổng ngân sách</label>${moneyInput("budget", s.budget)}</div>
+          <div class="field"><label for="ob-n">Số khách dự kiến</label><input class="input" id="ob-n" name="guestTarget" inputmode="numeric" value="${s.guestTarget || ""}" placeholder="VD: 300"></div>
+          <p class="tiny muted full" style="margin:0">Chưa chắc thì để trống, điền sau cũng được.</p>
+        </div>
+        <div class="form-actions"><button type="button" class="btn ghost" id="obSkip">Để sau</button><button type="button" class="btn" id="obBack">Quay lại</button><button type="submit" class="btn primary" id="obNext">Tiếp</button></div>
+      </form>`,
+    (m) => {
+      bindMoney(m);
+      const show = () => {
+        $$("[data-st]", m).forEach((el) => (el.hidden = +el.dataset.st !== step));
+        $("#obStep", m).textContent = `Bước ${step} / 3`;
+        $("#obBack", m).style.display = step > 1 ? "" : "none";
+        $("#obNext", m).textContent = step < 3 ? "Tiếp" : "Bắt đầu";
+        const f = $(`[data-st="${step}"] input`, m); f && f.focus();
+      };
+      $("[name=date]", m).addEventListener("input", (e) => { $("#ob-lunar", m).textContent = lunarLabel(e.target.value, true); });
+      $("#ob-lunar", m).textContent = lunarLabel(me.date, true);
+      $("#obBack", m).addEventListener("click", () => { step--; show(); });
+      $("#obSkip", m).addEventListener("click", () => { ui.onboardSkipped = true; closeModal(); });
+      $("#ob", m).addEventListener("submit", (e) => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target));
+        if (step === 2 && !f.date) { toast("Chọn ngày cho lễ chính"); $("#ob-d", m).focus(); return; }
+        if (step < 3) { step++; show(); return; }
+        const i = +f.main;
+        state.events.forEach((ev, k) => (ev.main = k === i));
+        Object.assign(state.events[i], { date: f.date, place: f.place.trim() });
+        Object.assign(state.settings, { bride: f.bride.trim(), groom: f.groom.trim(), date: f.date, budget: parseMoney(f.budget), guestTarget: parseMoney(f.guestTarget) });
+        ui.onboardSkipped = true;
+        closeModal(); rerender(); toast("Đã lên lịch chuẩn bị cho hai bạn");
+      });
+      onModalClose = () => { ui.onboardSkipped = true; };
+      show();
+    });
+  }
+
+  // ======================================================
   // TRANG CHỦ
   // ======================================================
   function coverHtml(cls = "photo") {
@@ -357,11 +565,14 @@
     const s = state.settings, me = mainEvent();
     const d = daysLeft(), pi = currentPhaseIdx(), ph = phases();
     const done = state.tasks.filter(isDone).length;
-    const phaseLeft = Math.max(0, d - PHASE_MIN_DAYS[pi]);
-    const dueTl = state.tasks.filter((t) => t.kind === "tl" && !isDone(t) && ph.indexOf(t.phase) <= pi).sort((a, b) => ph.indexOf(a.phase) - ph.indexOf(b.phase));
-    const curTl = dueTl.filter((t) => t.phase === ph[pi]).length;
-    const inProg = state.tasks.filter((t) => t.kind === "cat" && ["Đang cân nhắc", "Đã tìm đơn vị", "Đã đặt cọc"].includes(t.status));
-    const now = [...dueTl.slice(0, 3), ...inProg.slice(0, 5 - Math.min(3, dueTl.length))];
+    // việc chưa xong xếp theo hạn thật (quá hạn lên đầu); thiếu thì thêm việc đang dở
+    const withDue = state.tasks.filter((t) => !isDone(t) && taskDue(t)).sort((a, b) => taskDue(a).localeCompare(taskDue(b)));
+    const overdue = withDue.filter((t) => daysTo(taskDue(t)) < 0).length;
+    const soon = withDue.filter((t) => { const n = daysTo(taskDue(t)); return n >= 0 && n <= 14; }).length;
+    const inProg = state.tasks.filter((t) => !taskDue(t) && ["Đang cân nhắc", "Đã tìm đơn vị", "Đã đặt cọc"].includes(t.status));
+    const now = [...withDue.slice(0, 5), ...inProg].slice(0, 5);
+    const nowSub = !mainDate() ? "Chọn ngày cưới để web tính hạn cho từng việc"
+      : [overdue ? `${overdue} việc quá hạn` : "", soon ? `${soon} việc đến hạn trong 14 ngày` : "", `giai đoạn ${ph[pi]}`].filter(Boolean).join(" · ");
     const b = budgetTotals();
     const cats = budgetCatList();
     const alloc = cats.reduce((a, c) => a + (state.budgetCats[c] || 0), 0);
@@ -382,7 +593,7 @@
     return `<div class="wrap">
     <div class="page-head" style="align-items:center">
       <div><span class="small muted">${WDL[today().getDay()]}, ${dd(today())}</span>
-        <h1>Chào ${esc(String(s.bride).split(" ").pop())} &amp; ${esc(String(s.groom).split(" ").pop())}</h1></div>
+        <h1>Chào ${esc(coupleShort())}</h1></div>
       <div class="actions">
         <button class="btn" data-go="expense">Thêm khoản chi</button>
         <button class="btn primary" data-go="task">Thêm việc</button>
@@ -392,11 +603,11 @@
     ${sync().status === "signedout" ? `<div class="note info" style="align-items:center;flex-wrap:wrap">${icon("info", 18)}<span style="flex:1;min-width:200px">Dữ liệu đang chỉ lưu trên trình duyệt của máy này. Đăng nhập để lưu lên mạng, mở ở máy nào cũng thấy và mời người ấy cùng sửa.</span><button class="btn sm" data-signin>${googleIcon()} Đăng nhập Google</button></div>` : ""}
     <section class="hero">
       <div class="hero-text">
-        <span class="eyebrow">${icon("calendar", 16)} ${esc(me.name)} · ${esc(fmtLong(mainDate()))}</span>
-        <div class="names">${esc(s.bride)}<br><em>&amp;</em> ${esc(s.groom)}</div>
+        <span class="eyebrow">${icon("calendar", 16)} ${esc(me.name)} · ${mainDate() ? `${esc(fmtLong(mainDate()))} · ${esc(lunarLabel(mainDate()))}` : `<a href="#settings">Chọn ngày cưới</a>`}</span>
+        <div class="names">${esc(s.bride || "Cô dâu")}<br><em>&amp;</em> ${esc(s.groom || "Chú rể")}</div>
         <span class="venue">${icon("pin", 16)} ${esc(me.place || s.venue || "Chưa có địa điểm — thêm trong Cài đặt")}</span>
         <div class="counters">
-          <div class="counter"><b>${Math.max(0, d)}</b><span>${d > 0 ? "ngày nữa" : d === 0 ? "hôm nay!" : "ngày"}</span></div>
+          <div class="counter"><b>${d === null ? "—" : Math.max(0, d)}</b><span>${d === null ? "chưa chọn ngày" : d > 0 ? "ngày nữa" : d === 0 ? "hôm nay!" : "ngày"}</span></div>
           <div class="counter"><b>${done}<small>/${state.tasks.length}</small></b><span>việc đã xong</span></div>
           <div class="counter"><b>${state.guests.length}</b><span>lượt mời</span></div>
         </div>
@@ -409,7 +620,7 @@
         const list = tasksOfEvent(e.name); const dn = list.filter(isDone).length;
         return `<a class="event-card ${e.main ? "main" : ""}" href="#settings">
           <span class="step">Lễ ${i + 1}</span><b>${esc(e.name.replace(/^Lễ (.)/, (_, c) => c.toUpperCase()))}</b>
-          <span class="date ${e.date ? "set" : ""}">${e.date ? fmtDate(e.date) : "Chưa chọn ngày"}</span>
+          <span class="date ${e.date ? "set" : ""}">${e.date ? fmtDate(e.date) : "Chưa chọn ngày"}</span>${e.date ? `<span class="tiny muted">${lunarLabel(e.date)}</span>` : ""}
           ${list.length ? `<div style="margin-top:6px">${bar(pct(dn, list.length))}</div><span class="tiny" style="color:var(--text-2)">${dn}/${list.length} việc</span>` : `<span class="tiny muted" style="margin-top:6px">Chưa có việc</span>`}
         </a>`;
       }).join("")}
@@ -417,8 +628,8 @@
 
     <div class="cols">
       <section class="card span-2">
-        <div class="card-head"><div><h3>Việc cần làm ngay</h3><span class="sub">Giai đoạn ${esc(ph[pi])} · ${curTl ? `còn ${phaseLeft} ngày để xong ${curTl} việc` : "đã xong việc của giai đoạn này"}</span></div><a href="#checklist">Xem tất cả</a></div>
-        ${now.length ? now.map((t) => taskRow(t, { late: t.kind === "tl" && ph.indexOf(t.phase) < pi, where: true })).join("") : `<div class="empty">Không có việc nào đang chờ 🎉</div>`}
+        <div class="card-head"><div><h3>Việc cần làm ngay</h3><span class="sub">${esc(nowSub)}</span></div><a href="#checklist">Xem tất cả</a></div>
+        ${now.length ? now.map((t) => taskRow(t, { where: true })).join("") : `<div class="empty">${mainDate() ? "Không có việc nào đang chờ 🎉" : `<a href="#settings">Chọn ngày cưới</a> để xem việc cần làm trước`}</div>`}
       </section>
       <section class="card">
         <div class="card-head"><h3>Ngân sách</h3><a href="#budget">Chi tiết</a></div>
@@ -467,13 +678,24 @@
   // ======================================================
   // CHECKLIST
   // ======================================================
-  function taskRow(t, { late = false, where = false } = {}) {
+  // hạn của việc: ngày tự đặt, hoặc (việc theo mốc) ngày cuối giai đoạn
+  const taskDue = (t) => t.due || (t.kind === "tl" && mainDate() ? isoOf(phaseEnd(phases().indexOf(t.phase))) : "");
+  const daysTo = (iso) => Math.round((toDate(iso) - today()) / 864e5);
+  function dueChip(t) {
+    const due = taskDue(t);
+    if (!due || isDone(t)) return "";
+    const n = daysTo(due);
+    if (n < 0) return pill(`Quá hạn ${-n} ngày`, "clay");
+    if (n === 0) return pill("Hạn hôm nay", "clay");
+    return pill(n <= 14 ? `Còn ${n} ngày` : `Hạn ${dd(toDate(due))}`, n <= 14 ? "sand" : "");
+  }
+  function taskRow(t, { where = false } = {}) {
     return `<div class="task ${isDone(t) ? "done" : ""}" data-id="${t.id}">
       <button class="check ${isDone(t) ? "on" : ""}" data-act="toggle" aria-label="${isDone(t) ? "Bỏ đánh dấu" : "Đánh dấu xong"}: ${esc(t.title)}"></button>
       <div class="task-body">
-        <div class="task-title">${esc(t.title)}</div>
+        <button type="button" class="task-title" data-act="edit" title="Sửa việc">${esc(t.title)}</button>
         <div class="task-meta">
-          ${late ? pill("Trễ · " + t.phase, "clay") : ""}
+          ${dueChip(t)}
           ${t.pic ? pill(t.pic, "primary") : ""}
           ${where ? pill(t.kind === "tl" ? t.phase : t.group) : ""}
           ${t.prep && !where ? pill(t.prep) : ""}
@@ -489,10 +711,14 @@
       const row = btn.closest(".task"); if (!row) return;
       const t = state.tasks.find((x) => x.id === row.dataset.id); if (!t) return;
       if (btn.dataset.act === "toggle") {
-        t.status = isDone(t) ? (t.kind === "cat" ? "Đang cân nhắc" : "Chưa có gì") : "Hoàn tất";
+        // bỏ tick thì trả về đúng tình trạng trước khi tick
+        if (isDone(t)) { t.status = t.prevStatus || "Chưa có gì"; delete t.prevStatus; }
+        else { t.prevStatus = t.status; t.status = "Hoàn tất"; }
         rerender(); if (isDone(t)) toast("Xong một việc ✓");
+      } else if (btn.dataset.act === "edit") {
+        taskForm(t);
       } else if (btn.dataset.act === "del") {
-        if (confirm(`Xoá việc "${t.title}"?`)) { state.tasks = state.tasks.filter((x) => x !== t); rerender(); }
+        const snap = snapshot(); state.tasks = state.tasks.filter((x) => x !== t); removed(`Đã xoá "${t.title}"`, snap);
       }
     });
     root.addEventListener("change", (e) => {
@@ -577,30 +803,37 @@
     });
     $("#addTask").addEventListener("click", () => taskForm());
   };
-  function taskForm() {
+  function taskForm(task) {
+    const isNew = !task;
     const groups = [...new Set(state.tasks.filter((t) => t.kind === "cat").map((t) => t.group))];
-    const tl = ui.checklistTab === "tl";
-    openModal("Thêm việc", `
+    const t = task || { kind: ui.checklistTab === "tl" ? "tl" : "cat", title: "", phase: phases()[currentPhaseIdx()], group: groups[0] || "", pic: state.people[0], prep: "", status: "Chưa có gì", due: "" };
+    const auto = t.kind === "tl" && mainDate() ? dd(phaseEnd(phases().indexOf(t.phase))) : "";
+    openModal(isNew ? "Thêm việc" : "Sửa việc", `
       <form id="tf" class="form-grid">
-        <div class="field full"><label for="tf-title">Tên việc</label><input class="input" id="tf-title" name="title" required placeholder="VD: Đặt bánh cưới"></div>
-        <div class="field full"><span>Loại</span>${seg("kind", ["Theo mốc thời gian", "Theo lễ"], tl ? "Theo mốc thời gian" : "Theo lễ")}</div>
-        <div class="field full" data-k="tl"><label>Giai đoạn</label><select class="input" name="phase">${opts(phases(), phases()[currentPhaseIdx()])}</select></div>
-        <div class="field" data-k="cat"><label>Lễ / hạng mục</label><input class="input" name="group" list="grpList" value="${esc(groups[0] || "")}"><datalist id="grpList">${groups.map((g) => `<option value="${esc(g)}">`).join("")}</datalist></div>
-        <div class="field" data-k="cat"><label>Ai phụ trách</label><select class="input" name="pic">${opts(state.people)}</select></div>
-        <div class="field" data-k="cat"><label>Thời gian chuẩn bị</label><input class="input" name="prep" placeholder="Trước 1 tháng"></div>
-        <div class="field" data-k="cat"><label>Tình trạng</label><select class="input" name="status">${opts(STATUSES)}</select></div>
+        <div class="field full"><label for="tf-title">Tên việc</label><input class="input" id="tf-title" name="title" required value="${esc(t.title)}" placeholder="VD: Đặt bánh cưới"></div>
+        ${isNew ? `<div class="field full"><span>Loại</span>${seg("kind", ["Theo mốc thời gian", "Theo lễ"], t.kind === "tl" ? "Theo mốc thời gian" : "Theo lễ")}</div>` : `<input type="hidden" name="kind" value="${t.kind === "tl" ? "Theo mốc thời gian" : "Theo lễ"}">`}
+        <div class="field full" data-k="tl"><label>Giai đoạn</label><select class="input" name="phase">${opts(phases(), t.phase)}</select></div>
+        <div class="field" data-k="cat"><label>Lễ / hạng mục</label><input class="input" name="group" list="grpList" value="${esc(t.group || "")}"><datalist id="grpList">${groups.map((g) => `<option value="${esc(g)}">`).join("")}</datalist></div>
+        <div class="field" data-k="cat"><label>Ai phụ trách</label><select class="input" name="pic">${opts(peopleWith(t.pic), t.pic)}</select></div>
+        <div class="field" data-k="cat"><label>Thời gian chuẩn bị</label><input class="input" name="prep" value="${esc(t.prep || "")}" placeholder="Trước 1 tháng"></div>
+        <div class="field" data-k="cat"><label>Tình trạng</label><select class="input" name="status">${opts(STATUSES, t.status)}</select></div>
+        <div class="field full"><label for="tf-due">Hạn chót</label><input class="input" type="date" id="tf-due" name="due" value="${esc(t.due || "")}">
+          <span class="tiny muted" data-k="tl">${auto ? `Để trống thì lấy hạn của giai đoạn: ${auto}` : "Để trống thì lấy hạn của giai đoạn (cần chọn ngày cưới)"}</span></div>
       </form>
-      <div class="form-actions"><button class="btn" data-close>Huỷ</button><button class="btn primary" form="tf">Thêm</button></div>`,
+      <div class="form-actions">${isNew ? "" : `<button class="btn ghost danger" id="delT" style="margin-right:auto">Xoá</button>`}<button class="btn" data-close>Huỷ</button><button class="btn primary" form="tf">${isNew ? "Thêm" : "Lưu"}</button></div>`,
     (m) => {
-      const sync = () => { const k = $("[name=kind]:checked", m).value === "Theo lễ" ? "cat" : "tl"; $$("[data-k]", m).forEach((el) => (el.style.display = el.dataset.k === k ? "" : "none")); };
+      const kindOf = () => (($("[name=kind]:checked", m) || $("[name=kind]", m)).value === "Theo lễ" ? "cat" : "tl");
+      const sync = () => { const k = kindOf(); $$("[data-k]", m).forEach((el) => (el.style.display = el.dataset.k === k ? "" : "none")); };
       $$("[name=kind]", m).forEach((r) => r.addEventListener("change", sync)); sync();
       $("#tf", m).addEventListener("submit", (e) => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.target));
-        state.tasks.push(f.kind === "Theo mốc thời gian" ? { id: uid(), kind: "tl", phase: f.phase, title: f.title, status: "Chưa có gì" }
-          : { id: uid(), kind: "cat", group: f.group || "Khác", title: f.title, pic: f.pic, prep: f.prep, status: f.status });
-        closeModal(); rerender(); toast("Đã thêm việc");
+        const base = { title: f.title.trim(), due: f.due || "" };
+        const data = kindOf() === "tl" ? { kind: "tl", phase: f.phase, ...base } : { kind: "cat", group: f.group.trim() || "Khác", pic: f.pic, prep: f.prep, status: f.status, ...base };
+        if (isNew) state.tasks.push({ id: uid(), status: "Chưa có gì", ...data }); else Object.assign(task, data);
+        closeModal(); rerender(); toast(isNew ? "Đã thêm việc" : "Đã lưu");
       });
+      const del = $("#delT", m); del && del.addEventListener("click", () => { const snap = snapshot(); state.tasks = state.tasks.filter((x) => x !== task); removed(`Đã xoá "${task.title}"`, snap); });
     });
   }
 
@@ -752,7 +985,7 @@
         closeModal(); rerender(); toast("Đã lưu khoản chi");
       });
       const del = $("#delExp", m);
-      del && del.addEventListener("click", () => { if (confirm("Xoá khoản chi này?")) { state.expenses = state.expenses.filter((x) => x !== exp); closeModal(); rerender(); } });
+      del && del.addEventListener("click", () => { const snap = snapshot(); state.expenses = state.expenses.filter((x) => x !== exp); removed(`Đã xoá khoản chi "${exp.name}"`, snap); });
     });
   }
   function catForm(name) {
@@ -782,12 +1015,12 @@
       const del = $("#delCat", m);
       del && del.addEventListener("click", () => {
         const n = state.expenses.filter((e) => e.cat === name).length;
-        if (confirm(n ? `Xoá hạng mục? ${n} khoản chi sẽ chuyển sang "Khác".` : "Xoá hạng mục?")) {
-          delete state.budgetCats[name];
-          if (!("Khác" in state.budgetCats)) state.budgetCats["Khác"] = 0;
-          state.expenses.forEach((e) => { if (e.cat === name) e.cat = "Khác"; });
-          closeModal(); rerender();
-        }
+        const snap = snapshot();
+        delete state.budgetCats[name];
+        if (!("Khác" in state.budgetCats)) state.budgetCats["Khác"] = 0;
+        state.expenses.forEach((e) => { if (e.cat === name) e.cat = "Khác"; });
+        if (ui.budgetCat === name) ui.budgetCat = null;
+        removed(n ? `Đã xoá hạng mục "${name}" — ${n} khoản chi chuyển sang "Khác"` : `Đã xoá hạng mục "${name}"`, snap);
       });
     });
   }
@@ -814,6 +1047,9 @@
     list.forEach((x) => groups[x.group || "Chưa phân nhóm"].push(x));
     const bySide = (s) => guestPeople(scope.filter((x) => x.side === s));
     const sent = scope.filter((x) => x.sent).length;
+    const coming = guestPeople(scope.filter((x) => x.rsvp === "Sẽ đến")), notComing = guestPeople(scope.filter((x) => x.rsvp === "Không đến"));
+    const maybe = guestPeople(scope) - coming - notComing;
+    const tablesNeed = Math.ceil((coming + maybe) / 10);
     const unsent = scope.filter((x) => !x.sent);
     const unsentGroups = Object.entries(unsent.reduce((a, x) => ((a[x.group || "Chưa phân nhóm"] = (a[x.group || "Chưa phân nhóm"] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 2);
     const deadline = mainDate() ? dd(addDays(toDate(ev !== "*" && (state.events.find((e) => e.name === ev) || {}).date || mainDate()), -14)) : "";
@@ -832,7 +1068,7 @@
         <button role="tab" aria-selected="${ev === "*"}" class="${ev === "*" ? "on" : ""}" data-ev="*">Tất cả <span>${guestPeople(g)}</span></button>
       </div>
       <div class="stats">
-        <div class="stat"><span class="label">Dự kiến tham dự</span><span class="value">${guestPeople(scope)}</span><span class="hint">${esc(label)}</span></div>
+        <div class="stat"><span class="label">Dự kiến tham dự</span><span class="value">${guestPeople(scope) - notComing}</span><span class="hint">${coming || notComing ? `${coming} sẽ đến · ${notComing} không đến` : esc(label)}</span></div>
         <div class="stat"><span class="label" style="color:var(--clay-text);font-weight:600">Nhà gái</span><span class="value">${bySide("Nhà gái")}</span><span class="hint">${groupCount} nhóm</span></div>
         <div class="stat"><span class="label" style="color:var(--primary-text);font-weight:600">Nhà trai</span><span class="value">${bySide("Nhà trai")}</span><span class="hint">${bySide("Nhà trai") ? "" : "chưa nhập"}</span></div>
         <div class="stat"><span class="label">Đã gửi thiệp</span><span class="value">${sent} <small>/ ${scope.length}</small></span>${bar(pct(sent, scope.length))}</div>
@@ -859,6 +1095,7 @@
                 <span class="name">${esc(x.name)}${x.count > 1 ? ` <span class="muted small">+${x.count - 1}</span>` : ""}</span>
                 ${ev === "*" ? pill(x.event) : ""}
                 <span class="tiny muted">${esc(tableNameOf(x))}</span>
+                <button class="pill ${RSVP_TONE[x.rsvp || ""]}" data-rsvp title="Bấm để đổi: chưa trả lời → sẽ đến → không đến">${esc(x.rsvp || "Chưa trả lời")}</button>
                 <button class="pill ${x.sent ? "done" : "outline"}" data-sent>${x.sent ? "Đã gửi thiệp" : "Chưa gửi"}</button>
                 <button class="icon-btn" data-edit aria-label="Sửa ${esc(x.name)}">${icon("edit", 16)}</button>
               </div>`).join("") || `<div class="empty small">Không có khách khớp bộ lọc</div>`}</div>
@@ -872,6 +1109,12 @@
             <span class="small" style="color:var(--text-2)">${unsent.length ? `${unsentGroups.length ? `Nhiều nhất ở ${unsentGroups.map(([n, c]) => `${esc(n)} (${c})`).join(" và ")}. ` : ""}Nên gửi trước 2 tuần${deadline ? ` — hạn ${deadline}` : ""}.` : "Đã gửi hết thiệp 🎉"}</span>
             ${unsent.length ? `<button class="btn soft" id="exportUnsent">Xuất danh sách chưa gửi</button>` : ""}
           </section>
+          ${scope.length ? `<section class="card" style="display:flex;flex-direction:column;gap:8px">
+            <h3 style="font-size:17px">Xác nhận đến</h3>
+            <div class="split" role="img" aria-label="${coming} sẽ đến, ${maybe} chưa trả lời, ${notComing} không đến"><i style="width:${pct(coming, guestPeople(scope))}%;background:var(--primary)"></i><i style="width:${pct(maybe, guestPeople(scope))}%;background:#C9D6C3"></i><i style="width:${pct(notComing, guestPeople(scope))}%;background:var(--clay)"></i></div>
+            <div class="legend"><span><i class="sq" style="background:var(--primary)"></i>${coming} sẽ đến</span><span><i class="sq" style="background:#C9D6C3"></i>${maybe} chưa trả lời</span><span><i class="sq" style="background:var(--clay)"></i>${notComing} không đến</span></div>
+            <span class="small" style="color:var(--text-2)">Cần khoảng <b style="color:var(--ink)">${tablesNeed} bàn</b> (10 người/bàn) — tính cả khách chưa trả lời.</span>
+          </section>` : ""}
           ${ev !== "*" ? `<a class="cta-card" href="#seating" id="toSeat">
             <span class="eyebrow">Sơ đồ bàn</span>
             <b style="font-size:20px">${h ? `${guestPeople(seated)} / ${guestPeople(scope)} khách có chỗ` : "Chưa xếp chỗ"}</b>
@@ -902,6 +1145,7 @@
     $$("[data-g]").forEach((row) => {
       const x = state.guests.find((g) => g.id === row.dataset.g);
       $("[data-sent]", row).addEventListener("click", () => { x.sent = !x.sent; rerender(); });
+      $("[data-rsvp]", row).addEventListener("click", () => { x.rsvp = RSVP[(RSVP.indexOf(x.rsvp || "") + 1) % RSVP.length]; rerender(); });
       $("[data-edit]", row).addEventListener("click", () => guestForm(x));
     });
   };
@@ -927,6 +1171,7 @@
         <div class="field"><label>Số người</label><input class="input" type="number" min="1" max="20" name="count" value="${x.count || 1}"></div>
         <div class="field"><label>SĐT / Zalo</label><input class="input" name="phone" value="${esc(x.phone)}"></div>
         <div class="field full"><label>Ghi chú</label><input class="input" name="note" value="${esc(x.note)}" maxlength="200"></div>
+        <div class="field full"><span>Xác nhận đến</span>${seg("rsvp", ["Chưa trả lời", "Sẽ đến", "Không đến"], x.rsvp || "Chưa trả lời")}</div>
         <label class="check-label full"><input type="checkbox" name="sent" ${x.sent ? "checked" : ""}> Đã gửi thiệp</label>`}
       </form>
       <div class="form-actions">
@@ -953,17 +1198,16 @@
           fresh.forEach((name) => state.guests.push({ id: uid(), name, side: f.side, event: f.event, group: f.group, count: 1, phone: "", sendVia: f.sendVia, note: "", sent: false }));
           ui.guestEvent = f.event; closeModal(); rerender(); toast(`Đã thêm ${fresh.length} khách`); return;
         }
-        const data = { name: f.name.trim(), side: f.side, event: f.event, group: f.group, sendVia: f.sendVia, count: Math.max(1, +f.count || 1), phone: f.phone, note: f.note, sent: !!f.sent };
+        const data = { name: f.name.trim(), side: f.side, event: f.event, group: f.group, sendVia: f.sendVia, count: Math.max(1, +f.count || 1), phone: f.phone, note: f.note, sent: !!f.sent, rsvp: f.rsvp === "Chưa trả lời" ? "" : f.rsvp };
         if (isNew) state.guests.push({ id: uid(), ...data }); else Object.assign(guest, data);
         closeModal(); rerender(); toast(isNew ? "Đã thêm khách" : "Đã lưu");
       });
       const del = $("#delG", m);
       del && del.addEventListener("click", () => {
-        if (confirm(`Xoá ${guest.name}?`)) {
-          state.guests = state.guests.filter((g) => g !== guest);
-          Object.values(state.halls).forEach((h) => delete h.assign[guest.id]);
-          closeModal(); rerender();
-        }
+        const snap = snapshot();
+        state.guests = state.guests.filter((g) => g !== guest);
+        Object.values(state.halls).forEach((h) => delete h.assign[guest.id]);
+        removed(`Đã xoá khách "${guest.name}"`, snap);
       });
     });
   }
@@ -981,12 +1225,12 @@
     return state.halls[ev];
   }
   // chỉ tính khách của lễ đang xem — tránh khách đã đổi sang lễ khác vẫn chiếm ghế
-  function seatedAt(h, tid) { const ev = state.ui.seatEvent; return state.guests.filter((g) => g.event === ev && h.assign[g.id] === tid); }
+  function seatedAt(h, tid) { const ev = state.ui.seatEvent; return state.guests.filter((g) => g.event === ev && g.rsvp !== "Không đến" && h.assign[g.id] === tid); }
 
   function renderSeating() {
     if (!eventNames().includes(state.ui.seatEvent)) state.ui.seatEvent = eventNames()[0];
     const ev = state.ui.seatEvent, h = hall();
-    const invited = state.guests.filter((g) => g.event === ev);
+    const invited = state.guests.filter((g) => g.event === ev && g.rsvp !== "Không đến");
     const pool = invited.filter((g) => !h.tables.some((t) => t.id === h.assign[g.id]));
     const seatedPeople = guestPeople(invited) - guestPeople(pool);
     const capacity = h.tables.reduce((a, t) => a + t.seats, 0);
@@ -1113,9 +1357,10 @@
       $("#tSeats").addEventListener("change", (e) => { sel.seats = Math.max(2, Math.min(20, +e.target.value || 10)); rerender(); });
       $$("[data-unseat]").forEach((b) => b.addEventListener("click", () => { delete h.assign[b.dataset.unseat]; rerender(); }));
       $("#delTbl").addEventListener("click", () => {
-        if (!confirm(`Xoá ${sel.name}? Khách ở bàn này sẽ về danh sách chờ.`)) return;
+        const snap = snapshot();
         Object.keys(h.assign).forEach((gid) => { if (h.assign[gid] === sel.id) delete h.assign[gid]; });
-        h.tables = h.tables.filter((x) => x !== sel); ui.selTable = null; rerender();
+        h.tables = h.tables.filter((x) => x !== sel); ui.selTable = null;
+        removed(`Đã xoá ${sel.name} — khách về danh sách chờ`, snap);
       });
     }
   };
@@ -1142,7 +1387,7 @@
   function autoSeat(h) {
     const ev = state.ui.seatEvent;
     const valid = new Set(h.tables.map((t) => t.id));
-    const pool = state.guests.filter((g) => g.event === ev && !valid.has(h.assign[g.id])).sort((a, b) => (a.side + a.group).localeCompare(b.side + b.group, "vi"));
+    const pool = state.guests.filter((g) => g.event === ev && g.rsvp !== "Không đến" && !valid.has(h.assign[g.id])).sort((a, b) => (a.side + a.group).localeCompare(b.side + b.group, "vi"));
     if (!pool.length) return toast("Không còn khách chờ xếp");
     const free = () => h.tables.map((t) => ({ t, left: t.seats - guestPeople(seatedAt(h, t.id)) }));
     let placed = 0;
@@ -1238,7 +1483,7 @@
         p[f] = f === "ok" ? e.target.checked : f === "fee" ? parseMoney(e.target.value) : e.target.value.trim();
         save(); if (f === "fee" || f === "role" || f === "name") render();
       });
-      $$("[data-delp]", tt).forEach((b) => b.addEventListener("click", () => { state.team = state.team.filter((x) => x.id !== b.closest("[data-p]").dataset.p); rerender(); }));
+      $$("[data-delp]", tt).forEach((b) => b.addEventListener("click", () => { const snap = snapshot(); state.team = state.team.filter((x) => x.id !== b.closest("[data-p]").dataset.p); removed("Đã xoá một người khỏi đội hỗ trợ", snap); }));
       $("#addPerson").addEventListener("click", () => { state.team.push({ id: uid(), name: "", role: "Bưng quả", fee: 200000, size: "", phone: "", ok: false }); rerender(); });
     }
   };
@@ -1268,7 +1513,7 @@
         list.forEach((x) => delete x._i);
         closeModal(); rerender();
       });
-      const del = $("#delRow", m); del && del.addEventListener("click", () => { state.script[ev] = state.script[ev].filter((x) => x !== row); closeModal(); rerender(); });
+      const del = $("#delRow", m); del && del.addEventListener("click", () => { const snap = snapshot(); state.script[ev] = state.script[ev].filter((x) => x !== row); removed("Đã xoá mục kịch bản", snap); });
     });
   }
 
@@ -1345,7 +1590,7 @@
         ui.vendorCat = data.cat; closeModal(); rerender();
         if (data.status === "Đặt cọc" && data.price) toast("Đã đặt cọc — có thể gộp vào Ngân sách");
       });
-      const del = $("#delV", m); del && del.addEventListener("click", () => { if (confirm(`Xoá ${vendor.name}?`)) { state.vendors = state.vendors.filter((v) => v !== vendor); state.expenses.forEach((e) => { if (e.vendorId === vendor.id) e.vendorId = ""; }); closeModal(); rerender(); } });
+      const del = $("#delV", m); del && del.addEventListener("click", () => { const snap = snapshot(); state.vendors = state.vendors.filter((v) => v !== vendor); state.expenses.forEach((e) => { if (e.vendorId === vendor.id) e.vendorId = ""; }); removed(`Đã xoá "${vendor.name}"`, snap); });
     });
   }
 
@@ -1418,7 +1663,7 @@
         if (isNew) state.procedures.push({ id: uid(), ...data }); else Object.assign(proc, data);
         closeModal(); rerender();
       });
-      const del = $("#delP", m); del && del.addEventListener("click", () => { if (confirm("Xoá thủ tục này?")) { state.procedures = state.procedures.filter((p) => p !== proc); closeModal(); rerender(); } });
+      const del = $("#delP", m); del && del.addEventListener("click", () => { const snap = snapshot(); state.procedures = state.procedures.filter((p) => p !== proc); removed(`Đã xoá "${proc.name}"`, snap); });
     });
   }
 
@@ -1464,7 +1709,7 @@
       const x = state.after.find((a) => a.id === row.dataset.af);
       $("[data-afdone]", row).addEventListener("change", (e) => { x.done = e.target.checked; rerender(); });
       $("[data-afpic]", row).addEventListener("change", (e) => { x.pic = e.target.value; save(); });
-      $("[data-afdel]", row).addEventListener("click", () => { state.after = state.after.filter((a) => a !== x); rerender(); });
+      $("[data-afdel]", row).addEventListener("click", () => { const snap = snapshot(); state.after = state.after.filter((a) => a !== x); removed(`Đã xoá "${x.name}"`, snap); });
     });
     $("#afAdd").addEventListener("submit", (e) => { e.preventDefault(); const n = e.target.name.value.trim(); if (n) { state.after.push({ id: uid(), name: n, pic: "", done: false }); rerender(); } });
   };
@@ -1487,7 +1732,7 @@
         if (isNew) state.music.push({ id: uid(), ...data }); else Object.assign(song, data);
         closeModal(); rerender();
       });
-      const del = $("#delS", m); del && del.addEventListener("click", () => { state.music = state.music.filter((s) => s !== song); closeModal(); rerender(); });
+      const del = $("#delS", m); del && del.addEventListener("click", () => { const snap = snapshot(); state.music = state.music.filter((s) => s !== song); removed(`Đã xoá bài "${song.title}"`, snap); });
     });
   }
 
@@ -1523,14 +1768,18 @@
         <section class="card">
           <div class="card-head"><div><h3>Ngày các lễ</h3><span class="sub">Checklist và đếm ngược tính theo lễ đánh dấu “Lễ chính”</span></div></div>
           ${state.events.map((e, i) => `<div class="event-line">
-            <b>${esc(e.name)}</b>
-            <input class="input" type="date" name="ev-date-${i}" value="${esc(e.date)}" aria-label="Ngày ${esc(e.name)}">
+            <span style="display:flex;flex-direction:column"><b>${esc(e.name)}</b><span class="tiny muted" data-lunar="${i}">${lunarLabel(e.date, true)}</span></span>
+            <input class="input" type="date" name="ev-date-${i}" value="${esc(e.date)}" aria-label="Ngày ${esc(e.name)}" data-lunar-src="${i}">
             <input class="input" name="ev-place-${i}" value="${esc(e.place)}" placeholder="Địa điểm" aria-label="Địa điểm ${esc(e.name)}">
             <label class="check-label" style="min-height:44px"><input type="radio" name="main" value="${i}" ${e.main ? "checked" : ""}> Lễ chính</label>
           </div>`).join("")}
         </section>
       </form>
       ${accountCard()}
+      <section class="card">
+        <div class="card-head"><div><h3>Giao diện</h3><span class="sub">Chỉ áp dụng trên máy này</span></div></div>
+        ${seg("theme", ["Tự động", "Sáng", "Tối"], { light: "Sáng", dark: "Tối" }[document.documentElement.dataset.theme] || "Tự động")}
+      </section>
       <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
         <section class="card">
           <div class="card-head"><div><h3>Người phụ trách</h3><span class="sub">Dùng để giao việc trong checklist và thủ tục</span></div></div>
@@ -1540,7 +1789,7 @@
         <section class="card">
           <div class="card-head"><div><h3>Dữ liệu</h3><span class="sub">${sync().user ? "Đã lưu trên tài khoản Google. Xuất file nếu muốn giữ thêm một bản sao lưu riêng." : "Đang lưu trên trình duyệt của máy này. Xuất file để chuyển sang máy khác hoặc gửi cho người ấy."}</span></div></div>
           <div class="actions"><button class="btn" id="exp">Xuất file sao lưu</button><label class="btn">Nhập file<input type="file" id="imp" accept="application/json,.json" hidden></label><button class="btn" id="csv">Khách mời (CSV)</button></div>
-          <button class="btn ghost danger" id="reset" style="margin-top:12px;padding-left:0">Đặt lại dữ liệu mẫu từ Google Sheet</button>
+          <button class="btn ghost danger" id="reset" style="margin-top:12px;padding-left:0">Đặt lại về ban đầu</button>
         </section>
       </div>
     </div>`;
@@ -1560,6 +1809,12 @@
   }
   afterRender.settings = () => {
     bindAccount($("#view"));
+    $$("[name=theme]").forEach((r) => r.addEventListener("change", () => {
+      const t = { "Sáng": "light", "Tối": "dark" }[r.value] || "";
+      if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+      try { t ? localStorage.setItem("henuoc-theme", t) : localStorage.removeItem("henuoc-theme"); } catch (e) { /* chỉ là tiện ích */ }
+    }));
+    $$("[data-lunar-src]").forEach((inp) => inp.addEventListener("input", () => { $(`[data-lunar="${inp.dataset.lunarSrc}"]`).textContent = lunarLabel(inp.value, true); }));
     const m = $("#view");
     bindMoney(m);
     $("#setForm").addEventListener("submit", (e) => {
@@ -1585,11 +1840,14 @@
       if (used) { toast(`Còn ${used} việc của ${p} — đổi người phụ trách các việc đó trước`); return; }
       state.people = state.people.filter((x) => x !== p); rerender();
     }));
-    $("#addPeople").addEventListener("click", () => { const n = (prompt("Tên người phụ trách (VD: Cô Út)") || "").trim(); if (n && !state.people.includes(n)) { state.people.push(n); rerender(); } });
+    $("#addPeople").addEventListener("click", async () => {
+      const n = await ask({ title: "Thêm người phụ trách", input: { placeholder: "VD: Cô Út" }, ok: "Thêm" });
+      if (n && !state.people.includes(n)) { state.people.push(n); rerender(); }
+    });
     $("#exp").addEventListener("click", () => download(`hen-uoc-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state), "application/json"));
     $("#csv").addEventListener("click", () => {
-      const head = ["Họ tên", "Khách của", "Mời dự", "Nhóm", "Số người", "SĐT", "Gửi qua", "Ghi chú", "Đã gửi thiệp", "Bàn"];
-      const rows = state.guests.map((g) => [g.name, g.side, g.event, g.group, g.count, g.phone, g.sendVia, g.note, g.sent ? "Có" : "Chưa", tableNameOf(g)].map(csvCell).join(","));
+      const head = ["Họ tên", "Khách của", "Mời dự", "Nhóm", "Số người", "SĐT", "Gửi qua", "Ghi chú", "Đã gửi thiệp", "Xác nhận", "Bàn"];
+      const rows = state.guests.map((g) => [g.name, g.side, g.event, g.group, g.count, g.phone, g.sendVia, g.note, g.sent ? "Có" : "Chưa", g.rsvp || "Chưa trả lời", tableNameOf(g)].map(csvCell).join(","));
       download("khach-moi.csv", "﻿" + [head.map(csvCell).join(","), ...rows].join("\n"), "text/csv");
     });
     $("#imp").addEventListener("change", async (e) => {
@@ -1597,12 +1855,19 @@
       try {
         const data = JSON.parse(await file.text());
         if (!data.settings || !Array.isArray(data.tasks)) throw new Error();
-        if (!confirm(`Thay toàn bộ dữ liệu hiện tại bằng file "${file.name}"? Không hoàn tác được — nên xuất file sao lưu trước.`)) { e.target.value = ""; return; }
-        state = normalize(data); rerender(); toast("Đã nhập dữ liệu");
+        e.target.value = "";
+        if (!(await ask({ title: "Nhập dữ liệu từ file?", text: `Toàn bộ dữ liệu hiện tại sẽ được thay bằng file "${file.name}".`, ok: "Thay dữ liệu", danger: true }))) return;
+        const snap = snapshot();
+        state = normalize(data);
+        removed("Đã nhập dữ liệu từ file", snap);
       } catch (err) { toast("File không hợp lệ"); }
     });
-    $("#reset").addEventListener("click", () => {
-      if (confirm("Đặt lại toàn bộ về dữ liệu mẫu? Mọi thay đổi sẽ mất và không hoàn tác được.")) { state = seed(); normalize(state); rerender(); toast("Đã đặt lại"); }
+    $("#reset").addEventListener("click", async () => {
+      const online = sync().user ? " trên máy này và trên tài khoản Google" : "";
+      if (!(await ask({ title: "Đặt lại về ban đầu?", text: `Xoá khách mời, khoản chi, nhà cung cấp, xếp bàn, tên và ngày cưới${online}. Danh sách việc, kịch bản, nhạc được giữ nhưng về trạng thái chưa làm.\n\nNên bấm "Xuất file sao lưu" trước.`, ok: "Đặt lại", danger: true }))) return;
+      const snap = snapshot();
+      state = seed(); normalize(state); ui.onboardSkipped = false;
+      removed("Đã đặt lại về ban đầu", snap);
     });
   };
 

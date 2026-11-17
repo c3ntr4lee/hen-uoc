@@ -48,7 +48,7 @@ async function init() {
     }
   };
   S.signOut = async () => {
-    if (!confirm("Đăng xuất? Dữ liệu vẫn an toàn trên tài khoản Google; máy này sẽ trở về dữ liệu mẫu.")) return;
+    if (!(await app().ask({ title: "Đăng xuất?", text: "Dữ liệu vẫn an toàn trên tài khoản Google. Máy này sẽ trở về kế hoạch trống.", ok: "Đăng xuất" }))) return;
     await flush();
     stop(); localStorage.removeItem(LINK_KEY);
     await A.signOut(auth);
@@ -144,7 +144,7 @@ async function init() {
       const join = new URLSearchParams(location.search).get("join");
       if (join) {
         history.replaceState(null, "", location.pathname + location.hash);
-        if (join !== planId && confirm("Tham gia kế hoạch cưới chung qua link mời?\nTừ giờ tài khoản này sẽ mở kế hoạch chung.")) {
+        if (join !== planId && await app().ask({ title: "Tham gia kế hoạch chung?", text: "Bạn được mời cùng lên kế hoạch cưới. Từ giờ tài khoản này sẽ mở kế hoạch chung.", ok: "Tham gia", cancel: "Không" })) {
           try {
             await F.updateDoc(planRef(join), { members: F.arrayUnion(user.uid), ["memberNames." + user.uid]: myName(user) });
             await F.setDoc(uref, { planId: join, name: myName(user), email: user.email }, { merge: true });
@@ -169,7 +169,8 @@ async function init() {
       }
 
       if (localStorage.getItem(LINK_KEY) !== planId && app().hasLocalWork()) {
-        overwrite = !confirm("Tài khoản này đã có kế hoạch trên mạng.\n\nOK: mở kế hoạch trên mạng (dữ liệu đang có trên máy này sẽ bị thay).\nHuỷ: giữ dữ liệu trên máy này và ghi đè lên mạng.");
+        // đóng hộp mà không chọn → mở bản trên mạng (an toàn, không ghi đè gì)
+        overwrite = !(await app().ask({ title: "Tài khoản đã có kế hoạch", text: "Tài khoản này đã có kế hoạch trên mạng, khác với dữ liệu đang có trên máy này.\n\n• Mở kế hoạch trên mạng: dữ liệu trên máy này bị thay.\n• Giữ dữ liệu máy này: ghi đè lên kế hoạch trên mạng.", ok: "Mở kế hoạch trên mạng", cancel: "Giữ dữ liệu máy này", dismiss: true }));
       }
       open(planId);
     } catch (e) {
