@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBFAF6">
+<title>Thiệp cưới — Huyền &amp; Biển</title>
+<meta name="description" content="Trân trọng kính mời bạn đến chung vui cùng chúng mình.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="thiep.css?v=1">
+<script>
+// ===== SỬA NỘI DUNG THIỆP Ở ĐÂY =====
+// Ảnh: bỏ file vào thư mục thiep/ với đúng tên bên dưới (chưa có ảnh thì trang hiện khung trống).
+window.THIEP = {
+  coDau: "Thu Huyền", chuRe: "Biển",           // tên đầy đủ
+  tenNgan: ["Huyền", "Biển"],                   // tên viết tay trên thiệp
+  ngay: "2027-10-26", gio: "17:30",             // ngày giờ tiệc chính (đếm ngược tới đây)
+  thanhPho: "Hà Nội",
+  suKien: [
+    { ten: "Lễ vu quy", gio: "08:00", noi: "Tư gia nhà gái", diaChi: "Địa chỉ nhà gái" },
+    { ten: "Lễ thành hôn", gio: "10:00", noi: "Tư gia nhà trai", diaChi: "Địa chỉ nhà trai" },
+    { ten: "Tiệc cưới", gio: "17:30", noi: "Nhà hàng tiệc cưới", diaChi: "Địa chỉ nhà hàng", banDo: "" }
+  ],
+  lichTrinh: [                                  // icon: nhan, ly, anh, banh, nhac, tim
+    { gio: "17:00", viec: "Đón khách", icon: "tim" },
+    { gio: "17:30", viec: "Chụp ảnh lưu niệm", icon: "anh" },
+    { gio: "18:00", viec: "Nghi lễ trao nhẫn", icon: "nhan" },
+    { gio: "18:30", viec: "Nâng ly chúc mừng", icon: "ly" },
+    { gio: "19:00", viec: "Cắt bánh cưới", icon: "banh" },
+    { gio: "19:30", viec: "Âm nhạc & giao lưu", icon: "nhac" }
+  ],
+  trangPhuc: "Bạn mặc thoải mái, lịch sự là đẹp rồi. Nếu được, chọn các tông xanh rêu, be, trắng ngà để ảnh chung thật hài hoà nhé.",
+  mauTrangPhuc: ["#6F7A55", "#A9B094", "#E8E2D3", "#F6F2E9"],
+  mungCuoi: "Sự có mặt của bạn là món quà quý nhất. Nếu muốn gửi thêm lời chúc, bạn có thể gửi qua tài khoản bên dưới.",
+  taiKhoan: [ { ten: "Cô dâu", stk: "", nganHang: "" }, { ten: "Chú rể", stk: "", nganHang: "" } ],
+  chuyenTinh: [
+    "Chúng mình gặp nhau vào một ngày rất bình thường, rồi cứ thế nói chuyện mãi không dứt.",
+    "Từ những buổi cà phê vội, những chuyến đi xa, đến những ngày cùng nhau lo toan — mọi thứ đều thành kỷ niệm.",
+    "Và giờ chúng mình muốn bắt đầu chương mới, có bạn ở đó chung vui. Sự hiện diện của bạn là niềm hạnh phúc của chúng mình."
+  ],
+  dienThoai: "",                                // số nhận tin xác nhận tham dự (vd. 0912345678)
+  lienHeEmail: "",
+  linkXacNhan: "",                              // nếu dùng Google Form thì dán link vào đây
+  anh: ["thiep/anh-1.jpg", "thiep/anh-2.jpg", "thiep/anh-3.jpg", "thiep/anh-4.jpg", "thiep/anh-5.jpg", "thiep/anh-6.jpg"],
+  anhDenTrang: true,                            // ảnh đen trắng như thiệp mẫu
+  nhac: "thiep/nhac.mp3"
+};
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="deckle" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/>
+    </filter>
+    <filter id="paper" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="8" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+      <feComponentTransfer in="g" result="t"><feFuncA type="table" tableValues="0 0.16"/></feComponentTransfer>
+      <feComposite in="t" in2="SourceGraphic" operator="in" result="tex"/>
+      <feBlend in="SourceGraphic" in2="tex" mode="multiply"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- 1. Phong bì -->
+<section class="page page-mo" data-page="" aria-label="Phong bì thiệp">
+  <p class="caps">Bạn có một lá thư từ</p>
+  <h1 class="script names-hero" data-names></h1>
+  <button class="env" id="env" type="button" aria-label="Mở phong bì để xem thiệp">
+    <svg viewBox="0 0 420 300" class="env-svg" aria-hidden="true">
+      <g filter="url(#deckle)">
+        <rect class="env-back" x="0" y="0" width="420" height="300" rx="10"/>
+        <path class="env-flap-open" d="M0 8 Q0 0 10 0 H410 Q420 0 420 8 L234 160 Q210 180 186 160 Z"/>
+        <g class="env-letter"><rect x="34" y="22" width="352" height="250" rx="4"/><text x="210" y="70" class="env-letter-t">trân trọng kính mời</text></g>
+        <path class="env-front" d="M0 20 L186 168 Q210 188 234 168 L420 20 V290 Q420 300 410 300 H10 Q0 300 0 290 Z"/>
+        <path class="env-side" d="M0 20 L170 160 L0 300 Z"/>
+        <path class="env-side r" d="M420 20 L250 160 L420 300 Z"/>
+        <path class="env-flap" d="M0 8 Q0 0 10 0 H410 Q420 0 420 8 L234 160 Q210 180 186 160 Z"/>
+      </g>
+      <text x="210" y="138" class="env-mono" data-mono></text>
+    </svg>
+  </button>
+  <p class="caps hint">Chạm vào phong bì để mở</p>
+</section>
+
+<!-- 2. Thiệp -->
+<section class="page page-thiep" data-page="thiep" aria-label="Thiệp mời" hidden>
+  <div class="collage">
+    <div class="c-sprig" data-sprig="a"></div>
+    <figure class="polaroid p1"><span class="ph" data-photo="0"></span></figure>
+    <article class="c-card">
+      <svg class="scallop" viewBox="0 0 400 560" preserveAspectRatio="none" aria-hidden="true"><path class="sc-out"/><path class="sc-in" filter="url(#paper)"/></svg>
+      <div class="c-card-in">
+        <p class="caps">Trân trọng kính mời<br>đến dự lễ thành hôn của</p>
+        <h1 class="script names-card" data-names-stack></h1>
+        <p class="caps date-big" data-date></p>
+        <p class="lunar" data-lunar></p>
+        <p class="caps small" data-city></p>
+      </div>
+    </article>
+    <a class="c-rosette" href="#thong-tin" aria-label="Xem thông tin chi tiết">
+      <svg viewBox="0 0 300 300" aria-hidden="true"><path class="ros" filter="url(#paper)"/></svg>
+      <span class="script">Thông tin</span><span class="caps tiny">chạm để xem</span>
+    </a>
+    <button class="c-disc" id="disc" type="button" aria-label="Phát nhạc" hidden>
+      <span class="vinyl"><span class="label" data-mono></span></span>
+      <svg viewBox="0 0 200 200" class="curve" aria-hidden="true"><path id="cv" d="M30 100 A70 70 0 0 0 170 100" fill="none"/><text><textPath href="#cv" startOffset="50%" text-anchor="middle">chạm để nghe nhạc</textPath></text></svg>
+    </button>
+    <figure class="strip"><span class="ph" data-photo="1"></span><span class="ph" data-photo="2"></span><span class="ph" data-photo="3"></span></figure>
+    <a class="c-rsvp" href="#xac-nhan" aria-label="Xác nhận tham dự">
+      <div class="c-sprig sm" data-sprig="b"></div>
+      <svg viewBox="0 0 420 300" aria-hidden="true">
+        <g filter="url(#deckle)"><rect class="iv-back" width="420" height="300" rx="8"/><path class="iv-front" d="M0 20 L186 168 Q210 188 234 168 L420 20 V292 Q420 300 412 300 H8 Q0 300 0 292 Z"/><path class="iv-flap" d="M0 8 Q0 0 8 0 H412 Q420 0 420 8 L234 160 Q210 180 186 160 Z"/></g>
+      </svg>
+      <span class="script t">Hẹn gặp bạn<br>nhé!</span>
+      <span class="seal" data-mono></span>
+      <span class="caps tiny under">Xác nhận tham dự</span>
+    </a>
+    <span class="mono-float script" data-mono></span>
+    <figure class="polaroid p2"><span class="ph" data-photo="4"></span></figure>
+    <a class="c-arch" href="#chuyen-tinh" aria-label="Đọc chuyện của chúng mình">
+      <span class="script">Chuyện<br>chúng mình</span>
+      <figure class="polaroid mini"><span class="ph" data-photo="5"></span></figure>
+      <span class="caps tiny">chạm để đọc</span>
+    </a>
+  </div>
+  <div class="countdown">
+    <p class="caps">Đếm ngược tới ngày vui</p>
+    <div class="cd" id="cd" aria-live="off"></div>
+  </div>
+  <footer class="foot" data-contact></footer>
+</section>
+
+<!-- 3. Thông tin -->
+<section class="page page-sub" data-page="thong-tin" aria-label="Thông tin chi tiết" hidden>
+  <header class="band"><a href="#thiep" class="caps back">‹ Quay lại</a><div class="band-env"><span class="script">Thông tin</span><span class="seal" data-mono></span></div></header>
+  <div class="sub">
+    <h2 class="script h2">Thời gian &amp; địa điểm</h2>
+    <p class="caps label">Ngày</p><p class="it" data-date-long></p>
+    <div data-events></div>
+    <h2 class="script h2">Lịch trình</h2>
+    <ol class="timeline" data-timeline></ol>
+    <h2 class="script h2">Trang phục</h2>
+    <p class="it narrow" data-dress></p><div class="swatches" data-swatch></div>
+    <div data-gift-wrap><h2 class="script h2">Mừng cưới</h2><p class="it narrow" data-gift></p><div class="banks" data-banks></div></div>
+  </div>
+  <footer class="foot" data-contact></footer>
+  <p class="center"><a href="#thiep" class="caps back">Quay lại thiệp</a></p>
+</section>
+
+<!-- 4. Xác nhận -->
+<section class="page page-sub" data-page="xac-nhan" aria-label="Xác nhận tham dự" hidden>
+  <p class="center top"><a href="#thiep" class="caps back">‹ Quay lại</a></p>
+  <div class="sub">
+    <h2 class="script h2">Xác nhận tham dự</h2>
+    <p class="it narrow">Bạn báo giúp chúng mình trước ngày <b data-deadline></b> để chuẩn bị chu đáo nhé.</p>
+    <form class="rsvp" id="rsvp">
+      <label>Tên của bạn<input name="ten" required autocomplete="name"></label>
+      <fieldset><legend>Bạn sẽ đến chứ?</legend>
+        <label class="opt"><input type="radio" name="den" value="Sẽ đến" required> Chắc chắn rồi</label>
+        <label class="opt"><input type="radio" name="den" value="Không đến được"> Tiếc quá, mình bận</label>
+      </fieldset>
+      <label>Số người đi cùng (tính cả bạn)<input name="so" type="number" min="1" max="10" value="1" inputmode="numeric"></label>
+      <label>Bạn là khách của<select name="ben"><option>Nhà gái</option><option>Nhà trai</option><option>Cả hai</option></select></label>
+      <label>Lời nhắn<textarea name="loi" rows="3" placeholder="Một lời chúc nhỏ…"></textarea></label>
+      <div class="rsvp-actions" data-rsvp-actions></div>
+      <p class="tiny-note" id="rsvpNote" role="status"></p>
+    </form>
+  </div>
+  <p class="center"><a href="#thiep" class="caps back">Quay lại thiệp</a></p>
+</section>
+
+<!-- 5. Chuyện tình -->
+<section class="page page-sub" data-page="chuyen-tinh" aria-label="Chuyện của chúng mình" hidden>
+  <p class="center top"><a href="#thiep" class="caps back">‹ Quay lại</a></p>
+  <div class="story-head">
+    <div class="c-sprig" data-sprig="c"></div>
+    <div class="story-plaque"><span class="caps">chuyện của</span><span class="script">chúng mình</span></div>
+    <figure class="strip s2"><span class="ph" data-photo="1"></span><span class="ph" data-photo="3"></span><span class="ph" data-photo="2"></span></figure>
+  </div>
+  <div class="sub"><div class="story" data-story></div>
+    <p class="caps">Thương mến</p><p class="script sign" data-names></p></div>
+  <p class="center"><a href="#thiep" class="caps back">Quay lại thiệp</a></p>
+</section>
+
+<audio id="music" preload="none" loop></audio>
+<script src="lunar.js?v=16"></script>
+<script src="thiep.js?v=1"></script>
+</body>
+</html>
